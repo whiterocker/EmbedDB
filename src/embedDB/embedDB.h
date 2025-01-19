@@ -59,6 +59,11 @@ extern "C" {
 #endif
 #endif
 
+#if !defined(EDB_NO_HEAP)
+#define EDB_NO_HEAP (0)
+#endif
+#define EDB_WITH_HEAP (!EDB_NO_HEAP)
+
 #include "../spline/spline.h"
 
 /* Define type for page ids (physical and logical). */
@@ -84,6 +89,7 @@ typedef uint16_t count_t;
 #define EMBEDDB_USING_VDATA(x) ((x & EMBEDDB_USE_VDATA) > 0 ? 1 : 0)
 #define EMBEDDB_USING_RECORD_LEVEL_CONSISTENCY(x) ((x & EMBEDDB_RECORD_LEVEL_CONSISTENCY) > 0 ? 1 : 0)
 #define EMBEDDB_USING_BINARY_SEARCH(x) ((x & EMBEDDB_USE_BINARY_SEARCH) > 0 ? 1 : 0)
+#define EMBEDDB_USING_SPLINE(x) (!EMBEDDB_USING_BINARY_SEARCH(x))
 #define EMBEDDB_DISABLED_SPLINE_CLEAN(x) ((x & EMBEDDB_DISABLE_SPLINE_CLEAN) > 0 ? 1 : 0)
 #define EMBEDDB_RESETING_DATA(x) ((x & EMBEDDB_RESET_DATA) > 0 ? 1 : 0)
 

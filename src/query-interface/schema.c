@@ -50,29 +50,38 @@
  * @param	colSignedness	An array describing if the data in the column is signed or unsigned. Use the defined constants embedDB_COLUMNN_SIGNED or embedDB_COLUMN_UNSIGNED
  */
 embedDBSchema* embedDBCreateSchema(uint8_t numCols, int8_t* colSizes, int8_t* colSignedness) {
-    embedDBSchema* schema = malloc(sizeof(embedDBSchema));
+  embedDBSchema* schema = NULL;
+  if (EDB_WITH_HEAP) {
+    schema              = malloc(sizeof(embedDBSchema));
     schema->columnSizes = malloc(numCols * sizeof(int8_t));
-    schema->numCols = numCols;
-    uint16_t totalSize = 0;
-    for (uint8_t i = 0; i < numCols; i++) {
-        int8_t sign = colSignedness[i];
-        uint8_t colSize = colSizes[i];
-        totalSize += colSize;
-        if (colSize <= 0) {
-            EDB_PERRF("ERROR: Column size must be greater than zero\n");
-            return NULL;
-        }
-        if (sign == embedDB_COLUMN_SIGNED) {
-            schema->columnSizes[i] = -colSizes[i];
-        } else if (sign == embedDB_COLUMN_UNSIGNED) {
-            schema->columnSizes[i] = colSizes[i];
-        } else {
-            EDB_PERRF("ERROR: Must only use embedDB_COLUMN_SIGNED or embedDB_COLUMN_UNSIGNED to describe column signedness\n");
-            return NULL;
-        }
+    schema->numCols     = numCols;
+    
+    for (unsigned i=0; (i<numCols) && schema; i++) {
+      int8_t sign     = colSignedness[i];
+      uint8_t colSize = colSizes[i];
+      if (colSize <= 0) {
+	EDB_PERRF("ERROR: Column size must be greater than zero.\n");
+	free(schema->columnSizes);
+	free(schema);
+	schema = NULL;
+      }
+      else if (sign == embedDB_COLUMN_SIGNED) {
+	schema->columnSizes[i] = -colSizes[i];
+      }
+      else if (sign == embedDB_COLUMN_UNSIGNED) {
+	schema->columnSizes[i] = colSizes[i];
+      }
+      else {
+	EDB_PERRF("ERROR: Must only use embedDB_COLUMN_SIGNED or "
+		  "embedDB_COLUMN_UNSIGNED to describe column signedness.\n");
+	free(schema->columnSizes);
+	free(schema);
+	schema = NULL;
+      }
     }
-
-    return schema;
+  }
+  
+  return schema;
 }
 
 /**
@@ -89,30 +98,46 @@ void embedDBFreeSchema(embedDBSchema** schema) {
  * @brief	Uses schema to determine the length of buffer to allocate and callocs that space
  */
 void* createBufferFromSchema(embedDBSchema* schema) {
+  void *retval = NULL;
+
+  if (EDB_WITH_HEAP) {
     uint16_t totalSize = 0;
     for (uint8_t i = 0; i < schema->numCols; i++) {
-        totalSize += abs(schema->columnSizes[i]);
+      totalSize += abs(schema->columnSizes[i]);
     }
-    return calloc(1, totalSize);
+    retval = calloc(1, totalSize);
+  }
+
+  return retval;
 }
 
 /**
  * @brief	Deep copy schema and return a pointer to the copy
  */
 embedDBSchema* copySchema(const embedDBSchema* schema) {
-    embedDBSchema* copy = malloc(sizeof(embedDBSchema));
-    if (copy == NULL) {
-        EDB_PERRF("ERROR: malloc failed while copying schema\n");
-        return NULL;
+  embedDBSchema* copy = NULL;
+
+  if (EDB_WITH_HEAP) {    
+    copy = malloc(sizeof(embedDBSchema));
+    if (!copy) {
+      EDB_PERRF("ERROR: malloc failed while copying schema.\n");
     }
-    copy->numCols = schema->numCols;
-    copy->columnSizes = malloc(schema->numCols * sizeof(int8_t));
-    if (copy->columnSizes == NULL) {
+    else {
+      copy->numCols     = schema->numCols;
+      copy->columnSizes = malloc(schema->numCols * sizeof(int8_t));
+      if (!copy->columnSizes) {
         EDB_PERRF("ERROR: malloc failed while copying schema\n");
-        return NULL;
+        free(copy);
+	copy = NULL;
+      }
+      else {
+	memcpy(copy->columnSizes, schema->columnSizes,
+	       schema->numCols * sizeof(int8_t));
+      }
     }
-    memcpy(copy->columnSizes, schema->columnSizes, schema->numCols * sizeof(int8_t));
-    return copy;
+  }
+  
+  return copy;
 }
 
 /**

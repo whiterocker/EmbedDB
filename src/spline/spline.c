@@ -52,19 +52,21 @@
  */
 void splineInit(spline *spl, id_t size, size_t maxError, uint8_t keySize) {
     uint8_t pointSize = sizeof(uint32_t) + keySize;
-    spl->count = 0;
-    spl->pointsStartIndex = 0;
-    spl->eraseSize = 1;
-    spl->size = size;
-    spl->maxError = maxError;
-    spl->points = (void *)malloc(pointSize * size);
-    spl->tempLastPoint = 0;
-    spl->keySize = keySize;
-    spl->lastKey = malloc(keySize);
-    spl->lower = malloc(pointSize);
-    spl->upper = malloc(pointSize);
-    spl->firstSplinePoint = malloc(pointSize);
-    spl->numAddCalls = 0;
+    if (spl && EDB_WITH_HEAP) {
+      spl->count = 0;
+      spl->pointsStartIndex = 0;
+      spl->eraseSize = 1;
+      spl->size = size;
+      spl->maxError = maxError;
+      spl->points = (void *)malloc(pointSize * size);
+      spl->tempLastPoint = 0;
+      spl->keySize = keySize;
+      spl->lastKey = malloc(keySize);
+      spl->lower = malloc(pointSize);
+      spl->upper = malloc(pointSize);
+      spl->firstSplinePoint = malloc(pointSize);
+      spl->numAddCalls = 0;
+    }
 }
 
 /**
@@ -215,7 +217,8 @@ void splineAdd(spline *spl, void *key, uint32_t page) {
  * @return  Returns zero if successful and one if not
  */
 int splineErase(spline *spl, uint32_t numPoints) {
-    /* If the user tries to delete more points than they allocated or deleting would only leave one spline point */
+    /* If the user tries to delete more points than they allocated or
+       deleting would only leave one spline point */
     if (numPoints > spl->count || spl->count - numPoints == 1)
         return 1;
     if (numPoints == 0)
@@ -387,11 +390,13 @@ void splineFind(spline *spl, void *key, int8_t compareKey(void *, void *), id_t 
  * @param    spl        Spline structure
  */
 void splineClose(spline *spl) {
+  if (spl && EDB_WITH_HEAP) {
     free(spl->points);
     free(spl->lastKey);
     free(spl->lower);
     free(spl->upper);
     free(spl->firstSplinePoint);
+  }
 }
 
 /**

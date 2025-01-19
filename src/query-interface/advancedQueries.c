@@ -151,7 +151,7 @@ void initTableScan(embedDBOperator* op) {
     if (op->recordBuffer == NULL) {
         op->recordBuffer = createBufferFromSchema(op->schema);
         if (op->recordBuffer == NULL) {
-            EDB_PERRF("ERROR: Failed to allocate buffer for TableScan operator\n");
+            EDB_PERRF("ERROR: Failed to allocate buffer for TableScan operator.\n");
             return;
         }
     }
@@ -175,11 +175,13 @@ int8_t nextTableScan(embedDBOperator* op) {
 }
 
 void closeTableScan(embedDBOperator* op) {
-    embedDBFreeSchema(&op->schema);
+  embedDBFreeSchema(&op->schema);
+  if (EDB_WITH_HEAP) {
     free(op->recordBuffer);
     op->recordBuffer = NULL;
     free(op->state);
     op->state = NULL;
+  }
 }
 
 /**
@@ -188,78 +190,97 @@ void closeTableScan(embedDBOperator* op) {
  * @param	it			An initialized iterator setup to read relevent records for this query
  * @param	baseSchema	The schema of the database being read from
  */
-embedDBOperator* createTableScanOperator(embedDBState* state, embedDBIterator* it, embedDBSchema* baseSchema) {
-    // Ensure all fields are not NULL
-    if (state == NULL || it == NULL || baseSchema == NULL) {
-        EDB_PERRF("ERROR: All parameters must be provided to create a TableScan operator\n");
-        return NULL;
+embedDBOperator*
+createTableScanOperator(embedDBState *    state,
+			embedDBIterator * it,
+			embedDBSchema *   baseSchema)
+{
+  embedDBOperator * op = NULL;
+  
+  // Ensure all fields are not NULL
+  if (!state || !it || !baseSchema) {
+    EDB_PERRF("ERROR: All parameters must be provided to create a TableScan operator.\n");
+  }
+  else {
+    if (EDB_WITH_HEAP) {
+      op = malloc(sizeof(embedDBOperator));
     }
-
-    embedDBOperator* op = malloc(sizeof(embedDBOperator));
-    if (op == NULL) {
-        EDB_PERRF("ERROR: malloc failed while creating TableScan operator\n");
-        return NULL;
+    if (!op) {
+      EDB_PERRF("ERROR: no memory for TableScan operator.\n");
     }
-
-    op->state = malloc(2 * sizeof(void*));
-    if (op->state == NULL) {
-        EDB_PERRF("ERROR: malloc failed while creating TableScan operator\n");
-        return NULL;
+    else {
+      op->state = NULL;
+      if (EDB_WITH_HEAP) {
+	op->state = malloc(2 * sizeof(void*));
+      }
+      if (!op->state) {
+	EDB_PERRF("ERROR: no memory for TableScan operator state.\n");
+	free(op);
+	op = NULL;
+      }
+      else {
+	memcpy(op->state, &state, sizeof(void*));
+	memcpy((int8_t*)op->state + sizeof(void*), &it, sizeof(void*));
+	
+	op->schema = copySchema(baseSchema);
+	op->input = NULL;
+	op->recordBuffer = NULL;
+	
+	op->init = initTableScan;
+	op->next = nextTableScan;
+	op->close = closeTableScan;
+      }
     }
-    memcpy(op->state, &state, sizeof(void*));
-    memcpy((int8_t*)op->state + sizeof(void*), &it, sizeof(void*));
-
-    op->schema = copySchema(baseSchema);
-    op->input = NULL;
-    op->recordBuffer = NULL;
-
-    op->init = initTableScan;
-    op->next = nextTableScan;
-    op->close = closeTableScan;
-
-    return op;
+  }
+  
+  return op;
 }
 
 void initProjection(embedDBOperator* op) {
-    if (op->input == NULL) {
-        EDB_PERRF("ERROR: Projection operator needs an input operator\n");
-        return;
-    }
-
+  if (!op->input) {
+    EDB_PERRF("ERROR: Projection needs an input operator.\n");
+  }
+  else {
     // Init input
     op->input->init(op->input);
 
     // Get state
-    uint8_t numCols = *(uint8_t*)op->state;
-    uint8_t* cols = (uint8_t*)op->state + 1;
+    uint8_t   numCols = *(uint8_t*)op->state;
+    uint8_t * cols    = (uint8_t*)op->state + 1;
     const embedDBSchema* inputSchema = op->input->schema;
 
     // Init output schema
-    if (op->schema == NULL) {
+    if (EDB_WITH_HEAP) {
+      if (!op->schema) {
         op->schema = malloc(sizeof(embedDBSchema));
-        if (op->schema == NULL) {
-            EDB_PERRF("ERROR: Failed to allocate space for projection schema\n");
-            return;
-        }
+      }
+      if (!op->schema) {
+	EDB_PERRF("ERROR: no memory for projection schema.\n");
+      }
+      else {
         op->schema->numCols = numCols;
-        op->schema->columnSizes = malloc(numCols * sizeof(int8_t));
-        if (op->schema->columnSizes == NULL) {
-            EDB_PERRF("ERROR: Failed to allocate space for projection while building schema\n");
-            return;
+	op->schema->columnSizes = malloc(numCols * sizeof(int8_t));
+        if (!op->schema->columnSizes) {
+	  EDB_PERRF("ERROR: no memory for projection while building schema.\n");
+	  free(op->schema);
+	  op->schema = NULL;
         }
-        for (uint8_t i = 0; i < numCols; i++) {
-            op->schema->columnSizes[i] = inputSchema->columnSizes[cols[i]];
-        }
-    }
+	else {
+	  for (unsigned i=0; i<numCols; i++) {
+	    op->schema->columnSizes[i] = inputSchema->columnSizes[cols[i]];
+	  }
+	}
+      }
 
-    // Init output buffer
-    if (op->recordBuffer == NULL) {
+      // Init output buffer
+      if (!op->recordBuffer) {
         op->recordBuffer = createBufferFromSchema(op->schema);
-        if (op->recordBuffer == NULL) {
-            EDB_PERRF("ERROR: Failed to allocate buffer for TableScan operator\n");
-            return;
+        if (!op->recordBuffer) {
+	  EDB_PERRF("ERROR: no memory for record buffer in TableScan operator.\n");
         }
+      }
     }
+  }
 }
 
 int8_t nextProjection(embedDBOperator* op) {
@@ -287,43 +308,60 @@ void closeProjection(embedDBOperator* op) {
     op->input->close(op->input);
 
     embedDBFreeSchema(&op->schema);
-    free(op->state);
-    op->state = NULL;
-    free(op->recordBuffer);
-    op->recordBuffer = NULL;
+    if (EDB_WITH_HEAP) {
+      free(op->state);
+      op->state = NULL;
+      free(op->recordBuffer);
+      op->recordBuffer = NULL;
+    }
 }
 
 /**
  * @brief	Creates an operator capable of projecting the specified columns. Cannot re-order columns
  * @param	input	The operator that this operator can pull records from
  * @param	numCols	How many columns will be in the final projection
- * @param	cols	The indexes of the columns to be outputted. Zero indexed. Column indexes must be strictly increasing i.e. columns must stay in the same order, can only remove columns from input
+ * @param cols The indexes of the columns to be outputted. Zero
+ *             indexed. Column indexes must be strictly increasing
+ *             i.e. columns must stay in the same order, can only
+ *             remove columns from input
  */
-embedDBOperator* createProjectionOperator(embedDBOperator* input, uint8_t numCols, uint8_t* cols) {
-    // Create state
-    uint8_t* state = malloc(numCols + 1);
-    if (state == NULL) {
-        EDB_PERRF("ERROR: malloc failed while creating Projection operator\n");
-        return NULL;
+embedDBOperator *
+createProjectionOperator(embedDBOperator * input,
+			 uint8_t           numCols,
+			 uint8_t *         cols)
+{
+  embedDBOperator * op = NULL;
+
+  if (EDB_WITH_HEAP) {
+    op = malloc(sizeof(embedDBOperator));
+
+    if (!op) {
+      EDB_PERRF("ERROR: no memory for Projection operator.\n");
     }
-    state[0] = numCols;
-    memcpy(state + 1, cols, numCols);
+    else {
+      // Create state
+      uint8_t * state = malloc(numCols + 1);
+      if (!state) {
+	EDB_PERRF("ERROR: no memory for state of Projection operator.\n");
+	free(op);
+	op = NULL;
+      }
+      else {
+	state[0] = numCols;
+	memcpy(state + 1, cols, numCols);
 
-    embedDBOperator* op = malloc(sizeof(embedDBOperator));
-    if (op == NULL) {
-        EDB_PERRF("ERROR: malloc failed while creating Projection operator\n");
-        return NULL;
+	op->state = state;
+	op->input = input;
+	op->schema = NULL;
+	op->recordBuffer = NULL;
+	op->init = initProjection;
+	op->next = nextProjection;
+	op->close = closeProjection;
+      }
     }
-
-    op->state = state;
-    op->input = input;
-    op->schema = NULL;
-    op->recordBuffer = NULL;
-    op->init = initProjection;
-    op->next = nextProjection;
-    op->close = closeProjection;
-
-    return op;
+  }
+  
+  return op;
 }
 
 struct selectionInfo {
@@ -382,46 +420,65 @@ int8_t nextSelection(embedDBOperator* op) {
 }
 
 void closeSelection(embedDBOperator* op) {
-    op->input->close(op->input);
-
-    embedDBFreeSchema(&op->schema);
+  op->input->close(op->input);
+  
+  embedDBFreeSchema(&op->schema);
+  if (EDB_WITH_HEAP) {
     free(op->state);
     op->state = NULL;
     free(op->recordBuffer);
     op->recordBuffer = NULL;
+  }
 }
 
 /**
- * @brief	Creates an operator that selects records based on simple selection rules
- * @param	input		The operator that this operator can pull records from
- * @param	colNum		The index (zero-indexed) of the column base the select on
- * @param	operation	A constant representing which comparison operation to perform. (e.g. SELECT_GT, SELECT_EQ, etc)
- * @param	compVal		A pointer to the value to compare with. Make sure the size of this is the same number of bytes as is described in the schema
+ * @brief Creates an operator that selects records based on simple selection rules
+ * @param input     The operator that this operator can pull records from
+ * @param colNum    The index (zero-indexed) of the column base the
+ *                  select on
+ * @param operation A constant representing which comparison operation
+ *                  to perform. (e.g. SELECT_GT, SELECT_EQ, etc)
+ * @param compVal   A pointer to the value to compare with. Make sure
+ *                  the size of this is the same number of bytes as is
+ *                  described in the schema
  */
-embedDBOperator* createSelectionOperator(embedDBOperator* input, int8_t colNum, int8_t operation, void* compVal) {
-    struct selectionInfo* state = malloc(sizeof(struct selectionInfo));
-    if (state == NULL) {
-        EDB_PERRF("ERROR: Failed to malloc while creating Selection operator\n");
-        return NULL;
-    }
-    state->colNum = colNum;
-    state->operation = operation;
-    memcpy(&state->compVal, &compVal, sizeof(void*));
+embedDBOperator *
+createSelectionOperator(embedDBOperator * input,
+			int8_t            colNum,
+			int8_t            operation,
+			void *            compVal)
+{
+  embedDBOperator * op = NULL;
 
-    embedDBOperator* op = malloc(sizeof(embedDBOperator));
-    if (op == NULL) {
-        EDB_PERRF("ERROR: Failed to malloc while creating Selection operator\n");
-        return NULL;
+  if (EDB_WITH_HEAP) {
+    op = malloc(sizeof(embedDBOperator));
+    if (!op) {
+      EDB_PERRF("ERROR: no memory for Selection operator.\n");
     }
-    op->state = state;
-    op->input = input;
-    op->schema = NULL;
-    op->recordBuffer = NULL;
-    op->init = initSelection;
-    op->next = nextSelection;
-    op->close = closeSelection;
-
-    return op;
+    else {    
+      struct selectionInfo * state = malloc(sizeof(struct selectionInfo));
+      if (!state) {
+	EDB_PERRF("ERROR: no memory for state of Selection operator.\n");
+	free(op);
+	op = NULL;
+      }
+      else {
+	state->colNum = colNum;
+	state->operation = operation;
+	memcpy(&state->compVal, &compVal, sizeof(void*));
+  
+	op->state = state;
+	op->input = input;
+	op->schema = NULL;
+	op->recordBuffer = NULL;
+	op->init = initSelection;
+	op->next = nextSelection;
+	op->close = closeSelection;
+      }
+    }
+  }
+  
+  return op;
 }
 
 /**
@@ -436,53 +493,62 @@ struct aggregateInfo {
     int8_t isLastRecordUsable;                                        // Is the data in lastRecordBuffer usable for checking if the recently read record is in the same group? Is set to 0 at start, and also after the last record
 };
 
-void initAggregate(embedDBOperator* op) {
-    if (op->input == NULL) {
-        EDB_PERRF("ERROR: Aggregate operator needs an input operator\n");
-        return;
-    }
-
+void
+initAggregate(embedDBOperator * op)
+{
+  if (!op->input) {
+    EDB_PERRF("ERROR: Aggregate operator needs an input operator.\n");
+  }
+  else {
     // Init input
     op->input->init(op->input);
-
+    
     struct aggregateInfo* state = op->state;
     state->isLastRecordUsable = 0;
 
-    // Init output schema
-    if (op->schema == NULL) {
-        op->schema = malloc(sizeof(embedDBSchema));
-        if (op->schema == NULL) {
-            EDB_PERRF("ERROR: Failed to malloc while initializing aggregate operator\n");
-            return;
-        }
-        op->schema->numCols = state->functionsLength;
-        op->schema->columnSizes = malloc(state->functionsLength);
-        if (op->schema->columnSizes == NULL) {
-            EDB_PERRF("ERROR: Failed to malloc while initializing aggregate operator\n");
-            return;
-        }
-        for (uint8_t i = 0; i < state->functionsLength; i++) {
-            op->schema->columnSizes[i] = state->functions[i].colSize;
-            state->functions[i].colNum = i;
-        }
+    if (EDB_WITH_HEAP) {
+      // Init output schema
+      if (!op->schema) {
+	op->schema = malloc(sizeof(embedDBSchema));
+	if (!op->schema) {
+	  EDB_PERRF("ERROR: no memory for aggregate operator\n");
+	}
+	else {
+	  op->schema->numCols     = state->functionsLength;
+	  op->schema->columnSizes = malloc(state->functionsLength);
+	  if (!op->schema->columnSizes) {
+	    EDB_PERRF("ERROR: no memory for column sizes in aggregate operator\n");
+	    free(op->schema);
+	    op->schema = NULL;
+	  }
+	  else {
+	    for (unsigned i=0; i<state->functionsLength; i++) {
+	      op->schema->columnSizes[i] = state->functions[i].colSize;
+	      state->functions[i].colNum = i;
+	    }
+	  }
+	}
+      }
     }
-
+    
     // Init buffers
     state->bufferSize = getRecordSizeFromSchema(op->input->schema);
-    if (op->recordBuffer == NULL) {
-        op->recordBuffer = createBufferFromSchema(op->schema);
-        if (op->recordBuffer == NULL) {
-            EDB_PERRF("ERROR: Failed to malloc while initializing aggregate operator\n");
-            return;
-        }
+    if (!op->recordBuffer) {
+      op->recordBuffer = createBufferFromSchema(op->schema);
+      if (!op->recordBuffer) {
+	EDB_PERRF("ERROR: no memory for record buffer in aggregate operator.\n");
+      }
     }
-    if (state->lastRecordBuffer == NULL) {
-        state->lastRecordBuffer = malloc(state->bufferSize);
-        if (state->lastRecordBuffer == NULL) {
-            EDB_PERRF("ERROR: Failed to malloc while initializing aggregate operator\n");
-            return;
-        }
+
+    if (EDB_WITH_HEAP) {
+      if (!state->lastRecordBuffer) {
+	state->lastRecordBuffer = malloc(state->bufferSize);
+	if (!state->lastRecordBuffer) {
+	  EDB_PERRF("ERROR: no memory for last record buffer in  aggregate operator.\n");
+	}
+      }
     }
+  }
 }
 
 int8_t nextAggregate(embedDBOperator* op) {
@@ -551,50 +617,73 @@ int8_t nextAggregate(embedDBOperator* op) {
 }
 
 void closeAggregate(embedDBOperator* op) {
-    op->input->close(op->input);
-    op->input = NULL;
-    embedDBFreeSchema(&op->schema);
+  op->input->close(op->input);
+  op->input = NULL;
+  embedDBFreeSchema(&op->schema);
+  
+  if (EDB_WITH_HEAP) {
     free(((struct aggregateInfo*)op->state)->lastRecordBuffer);
     free(op->state);
     op->state = NULL;
     free(op->recordBuffer);
     op->recordBuffer = NULL;
+  }
 }
 
+typedef int8_t (*embedDBGroupFunc)(const void* lastRecord, const void* record);
+
 /**
- * @brief	Creates an operator that will find groups and preform aggregate functions over each group.
- * @param	input			The operator that this operator can pull records from
- * @param	groupfunc		A function that returns whether or not the @c record is part of the same group as the @c lastRecord. Assumes that records in groups are always next to each other and sorted when read in (i.e. Groups need to be 1122333, not 13213213)
- * @param	functions		An array of aggregate functions, each of which will be updated with each record read from the iterator
- * @param	functionsLength			The number of embedDBAggregateFuncs in @c functions
+ * @brief Creates an operator that will find groups and preform aggregate functions over each group.
+ * @param input           The operator that this operator can pull records from
+ * @param groupfunc       A function that returns whether or not the @c
+ *                        record is part of the same group as the @c
+ *                        lastRecord. Assumes that records in groups
+ *                        are always next to each other and sorted
+ *                        when read in (i.e. Groups need to be
+ *                        1122333, not 13213213)
+ * @param functions       An array of aggregate functions, each of which
+ *                        will be updated with each record read from
+ *                        the iterator
+ * @param functionsLength  The number of embedDBAggregateFuncs in @c functions
  */
-embedDBOperator* createAggregateOperator(embedDBOperator* input, int8_t (*groupfunc)(const void* lastRecord, const void* record), embedDBAggregateFunc* functions, uint32_t functionsLength) {
-    struct aggregateInfo* state = malloc(sizeof(struct aggregateInfo));
-    if (state == NULL) {
-        EDB_PERRF("ERROR: Failed to malloc while creating aggregate operator\n");
-        return NULL;
+embedDBOperator *
+createAggregateOperator(embedDBOperator *      input,
+			embedDBGroupFunc       groupfunc,
+			embedDBAggregateFunc * functions,
+			uint32_t               functionsLength)
+{
+  embedDBOperator* op = NULL;
+
+  if (EDB_WITH_HEAP) {
+    op = malloc(sizeof(embedDBOperator));
+    if (!op) {
+      EDB_PERRF("ERROR: no memory for aggregate operator.\n");      
     }
-
-    state->groupfunc = groupfunc;
-    state->functions = functions;
-    state->functionsLength = functionsLength;
-    state->lastRecordBuffer = NULL;
-
-    embedDBOperator* op = malloc(sizeof(embedDBOperator));
-    if (op == NULL) {
-        EDB_PERRF("ERROR: Failed to malloc while creating aggregate operator\n");
-        return NULL;
+    else {  
+      struct aggregateInfo * state = malloc(sizeof(struct aggregateInfo));
+      if (!state) {
+	EDB_PERRF("ERROR: no memory for state of aggregate operator.\n");
+	free(op);
+	op = NULL;
+      }
+      else {  
+	state->groupfunc = groupfunc;
+	state->functions = functions;
+	state->functionsLength = functionsLength;
+	state->lastRecordBuffer = NULL;
+  
+	op->state = state;
+	op->input = input;
+	op->schema = NULL;
+	op->recordBuffer = NULL;
+	op->init = initAggregate;
+	op->next = nextAggregate;
+	op->close = closeAggregate;
+      }
     }
-
-    op->state = state;
-    op->input = input;
-    op->schema = NULL;
-    op->recordBuffer = NULL;
-    op->init = initAggregate;
-    op->next = nextAggregate;
-    op->close = closeAggregate;
-
-    return op;
+  }
+  
+  return op;
 }
 
 struct keyJoinInfo {
@@ -602,49 +691,58 @@ struct keyJoinInfo {
     int8_t firstCall;
 };
 
-void initKeyJoin(embedDBOperator* op) {
-    struct keyJoinInfo* state = op->state;
-    embedDBOperator* input1 = op->input;
-    embedDBOperator* input2 = state->input2;
-
-    // Init inputs
-    input1->init(input1);
-    input2->init(input2);
-
-    embedDBSchema* schema1 = input1->schema;
-    embedDBSchema* schema2 = input2->schema;
-
-    // Check that join is compatible
-    if (schema1->columnSizes[0] != schema2->columnSizes[0] || schema1->columnSizes[0] < 0 || schema2->columnSizes[0] < 0) {
-        EDB_PERRF("ERROR: The first columns of the two tables must be the key and must be the same size. Make sure you haven't projected them out.\n");
-        return;
+void initKeyJoin(embedDBOperator * op)
+{
+  struct keyJoinInfo* state = op->state;
+  embedDBOperator* input1 = op->input;
+  embedDBOperator* input2 = state->input2;
+  
+  // Init inputs
+  input1->init(input1);
+  input2->init(input2);
+  
+  embedDBSchema* schema1 = input1->schema;
+  embedDBSchema* schema2 = input2->schema;
+  
+  // Check that join is compatible
+  if ((schema1->columnSizes[0] != schema2->columnSizes[0]) ||
+      (schema1->columnSizes[0] < 0)                        ||
+      (schema2->columnSizes[0] < 0)) {
+    EDB_PERRF("ERROR: The first columns of the two tables must be the key "
+	      "and must be the same size. Make sure you haven't projected them out.\n");
+  }
+  else {
+    if (EDB_WITH_HEAP) {
+      // Setup schema
+      if (!op->schema) {
+	op->schema = malloc(sizeof(embedDBSchema));
+	if (!op->schema) {
+	  EDB_PERRF("ERROR: no memory for join operator.\n");
+	}
+	else {
+	  op->schema->numCols = schema1->numCols + schema2->numCols;
+	  op->schema->columnSizes = malloc(op->schema->numCols * sizeof(int8_t));
+	  if (!op->schema->columnSizes) {
+	    EDB_PERRF("ERROR: no memory for columns sizes of join operator.\n");
+	    free(op->schema);
+	    op->schema = NULL;
+	  }
+	  else {
+	    memcpy(op->schema->columnSizes, schema1->columnSizes, schema1->numCols);
+	    memcpy(op->schema->columnSizes + schema1->numCols, schema2->columnSizes, schema2->numCols);
+	  }
+	}
+      }
+    
+      // Allocate recordBuffer
+      op->recordBuffer = malloc(getRecordSizeFromSchema(op->schema));
+      if (!op->recordBuffer) {
+	EDB_PERRF("ERROR: no memory for recordBuffer of join operator.\n");
+      }
     }
-
-    // Setup schema
-    if (op->schema == NULL) {
-        op->schema = malloc(sizeof(embedDBSchema));
-        if (op->schema == NULL) {
-            EDB_PERRF("ERROR: Failed to malloc while initializing join operator\n");
-            return;
-        }
-        op->schema->numCols = schema1->numCols + schema2->numCols;
-        op->schema->columnSizes = malloc(op->schema->numCols * sizeof(int8_t));
-        if (op->schema->columnSizes == NULL) {
-            EDB_PERRF("ERROR: Failed to malloc while initializing join operator\n");
-            return;
-        }
-        memcpy(op->schema->columnSizes, schema1->columnSizes, schema1->numCols);
-        memcpy(op->schema->columnSizes + schema1->numCols, schema2->columnSizes, schema2->numCols);
-    }
-
-    // Allocate recordBuffer
-    op->recordBuffer = malloc(getRecordSizeFromSchema(op->schema));
-    if (op->recordBuffer == NULL) {
-        EDB_PERRF("ERROR: Failed to malloc while initializing join operator\n");
-        return;
-    }
-
-    state->firstCall = 1;
+    
+   state->firstCall = 1;
+  }
 }
 
 int8_t nextKeyJoin(embedDBOperator* op) {
@@ -708,45 +806,56 @@ int8_t nextKeyJoin(embedDBOperator* op) {
 }
 
 void closeKeyJoin(embedDBOperator* op) {
-    struct keyJoinInfo* state = op->state;
-    embedDBOperator* input1 = op->input;
-    embedDBOperator* input2 = state->input2;
-    input1->close(input1);
-    input2->close(input2);
-
-    embedDBFreeSchema(&op->schema);
+  struct keyJoinInfo* state = op->state;
+  embedDBOperator* input1 = op->input;
+  embedDBOperator* input2 = state->input2;
+  input1->close(input1);
+  input2->close(input2);
+  
+  embedDBFreeSchema(&op->schema);
+  if (EDB_WITH_HEAP) {
     free(op->state);
     op->state = NULL;
     free(op->recordBuffer);
     op->recordBuffer = NULL;
+  }
 }
 
 /**
- * @brief	Creates an operator for perfoming an equijoin on the keys (sorted and distinct) of two tables
+ * @brief Creates an operator for perfoming an equijoin on the keys
+ *        (sorted and distinct) of two tables
  */
-embedDBOperator* createKeyJoinOperator(embedDBOperator* input1, embedDBOperator* input2) {
-    embedDBOperator* op = malloc(sizeof(embedDBOperator));
-    if (op == NULL) {
-        EDB_PERRF("ERROR: Failed to malloc while creating join operator\n");
-        return NULL;
+embedDBOperator *
+createKeyJoinOperator(embedDBOperator * input1,
+		      embedDBOperator * input2)
+{
+  embedDBOperator* op = NULL;
+
+  if (EDB_WITH_HEAP) {
+    op = malloc(sizeof(embedDBOperator));
+    if (!op) {
+      EDB_PERRF("ERROR: no memory for join operator\n");
     }
-
-    struct keyJoinInfo* state = malloc(sizeof(struct keyJoinInfo));
-    if (state == NULL) {
-        EDB_PERRF("ERROR: Failed to malloc while creating join operator\n");
-        return NULL;
+    else {
+      struct keyJoinInfo * state = malloc(sizeof(struct keyJoinInfo));
+      if (!state) {
+	EDB_PERRF("ERROR: no memory for state of join operator.\n");
+      }
+      else {
+	state->input2 = input2;
+  
+	op->input = input1;
+	op->state = state;
+	op->recordBuffer = NULL;
+	op->schema = NULL;
+	op->init = initKeyJoin;
+	op->next = nextKeyJoin;
+	op->close = closeKeyJoin;
+      }
     }
-    state->input2 = input2;
-
-    op->input = input1;
-    op->state = state;
-    op->recordBuffer = NULL;
-    op->schema = NULL;
-    op->init = initKeyJoin;
-    op->next = nextKeyJoin;
-    op->close = closeKeyJoin;
-
-    return op;
+  }
+  
+  return op;
 }
 
 void countReset(embedDBAggregateFunc* aggFunc, embedDBSchema* inputSchema) {
@@ -763,16 +872,24 @@ void countCompute(embedDBAggregateFunc* aggFunc, embedDBSchema* outputSchema, vo
 }
 
 /**
- * @brief	Creates an aggregate function to count the number of records in a group. To be used in combination with an embedDBOperator produced by createAggregateOperator
+ * @brief Creates an aggregate function to count the number of records
+ *        in a group. To be used in combination with an
+ *        embedDBOperator produced by createAggregateOperator
  */
-embedDBAggregateFunc* createCountAggregate() {
-    embedDBAggregateFunc* aggFunc = malloc(sizeof(embedDBAggregateFunc));
-    aggFunc->reset = countReset;
-    aggFunc->add = countAdd;
-    aggFunc->compute = countCompute;
-    aggFunc->state = malloc(sizeof(uint32_t));
-    aggFunc->colSize = 4;
-    return aggFunc;
+embedDBAggregateFunc *
+createCountAggregate(void) {
+  embedDBAggregateFunc* aggFunc = NULL;
+  if (EDB_WITH_HEAP) {
+    aggFunc = malloc(sizeof(embedDBAggregateFunc));
+    if (aggFunc) {
+      aggFunc->reset = countReset;
+      aggFunc->add = countAdd;
+      aggFunc->compute = countCompute;
+      aggFunc->state = malloc(sizeof(uint32_t));
+      aggFunc->colSize = 4;
+    }
+  }
+  return aggFunc;
 }
 
 void sumReset(embedDBAggregateFunc* aggFunc, embedDBSchema* inputSchema) {
@@ -811,18 +928,29 @@ void sumCompute(embedDBAggregateFunc* aggFunc, embedDBSchema* outputSchema, void
 }
 
 /**
- * @brief	Creates an aggregate function to sum a column over a group. To be used in combination with an embedDBOperator produced by createAggregateOperator. Column must be no bigger than 8 bytes.
- * @param	colNum	The index (zero-indexed) of the column which you want to sum. Column must be <= 8 bytes
+ * @brief Creates an aggregate function to sum a column over a
+ *        group. To be used in combination with an embedDBOperator
+ *        produced by createAggregateOperator. Column must be no
+ *        bigger than 8 bytes.
+  * @param colNum The index (zero-indexed) of the column which you
+  *               want to sum. Column must be <= 8 bytes
  */
-embedDBAggregateFunc* createSumAggregate(uint8_t colNum) {
-    embedDBAggregateFunc* aggFunc = malloc(sizeof(embedDBAggregateFunc));
-    aggFunc->reset = sumReset;
-    aggFunc->add = sumAdd;
-    aggFunc->compute = sumCompute;
-    aggFunc->state = malloc(sizeof(int8_t) + sizeof(int64_t));
-    *((uint8_t*)aggFunc->state + sizeof(int64_t)) = colNum;
-    aggFunc->colSize = -8;
-    return aggFunc;
+embedDBAggregateFunc *
+createSumAggregate(uint8_t colNum)
+{
+  embedDBAggregateFunc* aggFunc = NULL;
+  if (EDB_WITH_HEAP) {
+    aggFunc = malloc(sizeof(embedDBAggregateFunc));
+    if (aggFunc) {
+      aggFunc->reset = sumReset;
+      aggFunc->add = sumAdd;
+      aggFunc->compute = sumCompute;
+      aggFunc->state = malloc(sizeof(int8_t) + sizeof(int64_t));
+      *((uint8_t*)aggFunc->state + sizeof(int64_t)) = colNum;
+      aggFunc->colSize = -8;
+    }
+  }
+  return aggFunc;
 }
 
 struct minMaxState {
@@ -862,34 +990,51 @@ void minMaxCompute(embedDBAggregateFunc* aggFunc, embedDBSchema* outputSchema, v
 }
 
 /**
- * @brief	Creates an aggregate function to find the min value in a group
- * @param	colNum	The zero-indexed column to find the min of
- * @param	colSize	The size, in bytes, of the column to find the min of. Negative number represents a signed number, positive is unsigned.
+ * @brief Creates an aggregate function to find the min value in a group
+ * @param colNum   The zero-indexed column to find the min of
+ * @param colSize  The size, in bytes, of the column to find the min
+ *                 of. Negative number represents a signed number,
+ *                 positive is unsigned.
  */
-embedDBAggregateFunc* createMinAggregate(uint8_t colNum, int8_t colSize) {
-    embedDBAggregateFunc* aggFunc = malloc(sizeof(embedDBAggregateFunc));
-    if (aggFunc == NULL) {
-        EDB_PERRF("ERROR: Failed to allocate while creating min aggregate function\n");
-        return NULL;
+embedDBAggregateFunc *
+createMinAggregate(uint8_t colNum,
+		   int8_t  colSize)
+{
+  embedDBAggregateFunc * aggFunc = NULL;
+  
+  if (EDB_WITH_HEAP) {
+    aggFunc = malloc(sizeof(embedDBAggregateFunc));
+    if (!aggFunc) {
+      EDB_PERRF("ERROR: no memory for min aggregate function.\n");
     }
-    struct minMaxState* state = malloc(sizeof(struct minMaxState));
-    if (state == NULL) {
-        EDB_PERRF("ERROR: Failed to allocate while creating min aggregate function\n");
-        return NULL;
+    else {
+      struct minMaxState * state = malloc(sizeof(struct minMaxState));
+      if (!state) {
+        EDB_PERRF("ERROR: no memory for state of min aggregate function.\n");
+	free(aggFunc);
+	aggFunc = NULL;
+      }
+      else {
+	state->colNum = colNum;
+	state->current = malloc(abs(colSize));
+	if (!state->current) {
+	  EDB_PERRF("ERROR: no memory for current attribute of min aggregate function.\n");
+	  free(state);
+	  free(aggFunc);
+	  aggFunc = NULL;
+	}
+	else {
+	  aggFunc->state = state;
+	  aggFunc->colSize = colSize;
+	  aggFunc->reset = minReset;
+	  aggFunc->add = minAdd;
+	  aggFunc->compute = minMaxCompute;
+	}
+      }
     }
-    state->colNum = colNum;
-    state->current = malloc(abs(colSize));
-    if (state->current == NULL) {
-        EDB_PERRF("ERROR: Failed to allocate while creating min aggregate function\n");
-        return NULL;
-    }
-    aggFunc->state = state;
-    aggFunc->colSize = colSize;
-    aggFunc->reset = minReset;
-    aggFunc->add = minAdd;
-    aggFunc->compute = minMaxCompute;
+  }
 
-    return aggFunc;
+  return aggFunc;
 }
 
 void maxReset(embedDBAggregateFunc* aggFunc, embedDBSchema* inputSchema) {
@@ -919,34 +1064,51 @@ void maxAdd(embedDBAggregateFunc* aggFunc, embedDBSchema* inputSchema, const voi
 }
 
 /**
- * @brief	Creates an aggregate function to find the max value in a group
- * @param	colNum	The zero-indexed column to find the max of
- * @param	colSize	The size, in bytes, of the column to find the max of. Negative number represents a signed number, positive is unsigned.
+ * @brief Creates an aggregate function to find the max value in a group
+ * @param colNum The zero-indexed column to find the max of
+ * @param colSize The size, in bytes, of the column to find the max
+ *                of. Negative number represents a signed number,
+ *                positive is unsigned.
  */
-embedDBAggregateFunc* createMaxAggregate(uint8_t colNum, int8_t colSize) {
-    embedDBAggregateFunc* aggFunc = malloc(sizeof(embedDBAggregateFunc));
-    if (aggFunc == NULL) {
-        EDB_PERRF("ERROR: Failed to allocate while creating max aggregate function\n");
-        return NULL;
-    }
-    struct minMaxState* state = malloc(sizeof(struct minMaxState));
-    if (state == NULL) {
-        EDB_PERRF("ERROR: Failed to allocate while creating max aggregate function\n");
-        return NULL;
-    }
-    state->colNum = colNum;
-    state->current = malloc(abs(colSize));
-    if (state->current == NULL) {
-        EDB_PERRF("ERROR: Failed to allocate while creating max aggregate function\n");
-        return NULL;
-    }
-    aggFunc->state = state;
-    aggFunc->colSize = colSize;
-    aggFunc->reset = maxReset;
-    aggFunc->add = maxAdd;
-    aggFunc->compute = minMaxCompute;
+embedDBAggregateFunc *
+createMaxAggregate(uint8_t colNum,
+		   int8_t  colSize)
+{
+  embedDBAggregateFunc* aggFunc = NULL;
 
-    return aggFunc;
+  if (EDB_WITH_HEAP) {
+    aggFunc = malloc(sizeof(embedDBAggregateFunc));
+    if (!aggFunc) {
+      EDB_PERRF("ERROR: no memory for max aggregate function.\n");
+    }
+    else {
+      struct minMaxState * state = malloc(sizeof(struct minMaxState));
+      if (!state) {
+	EDB_PERRF("ERROR: no memory for state of max aggregate function.\n");
+	free(aggFunc);
+	aggFunc = NULL;
+      }
+      else {
+	state->colNum = colNum;
+	state->current = malloc(abs(colSize));
+	if (!state->current) {
+	  EDB_PERRF("ERROR: no memory for current attribute of max aggregate function.\n");
+	  free(state);
+	  free(aggFunc);
+	  aggFunc = NULL;
+	}
+	else {
+	  aggFunc->state = state;
+	  aggFunc->colSize = colSize;
+	  aggFunc->reset = maxReset;
+	  aggFunc->add = maxAdd;
+	  aggFunc->compute = minMaxCompute;
+	}
+      }
+    }
+  }
+  
+  return aggFunc;
 }
 
 struct avgState {
@@ -1014,57 +1176,75 @@ void avgCompute(struct embedDBAggregateFunc* aggFunc, embedDBSchema* outputSchem
 }
 
 /**
- * @brief	Creates an operator to compute the average of a column over a group. **WARNING: Outputs a floating point number that may not be compatible with other operators**
- * @param	colNum			Zero-indexed column to take average of
- * @param	outputFloatSize	Size of float to output. Must be either 4 (float) or 8 (double)
+ * @brief Creates an operator to compute the average of a column over
+ *        a group. **WARNING: Outputs a floating point number that may
+ *        not be compatible with other operators**
+ * @param colNum          Zero-indexed column to take average of
+ * @param outputFloatSize Size of float to output. Must be either 4 (float) or 8 (double)
  */
-embedDBAggregateFunc* createAvgAggregate(uint8_t colNum, int8_t outputFloatSize) {
-    embedDBAggregateFunc* aggFunc = malloc(sizeof(embedDBAggregateFunc));
-    if (aggFunc == NULL) {
-        EDB_PERRF("ERROR: Failed to allocate while creating avg aggregate function\n");
-        return NULL;
-    }
-    struct avgState* state = malloc(sizeof(struct avgState));
-    if (state == NULL) {
-        EDB_PERRF("ERROR: Failed to allocate while creating avg aggregate function\n");
-        return NULL;
-    }
-    state->colNum = colNum;
-    aggFunc->state = state;
-    if (outputFloatSize > 8 || (outputFloatSize < 8 && outputFloatSize > 4)) {
-        EDB_PERRF("WARNING: The size of the output float for AVG must be exactly 4 or 8. Defaulting to 8.");
-        aggFunc->colSize = 8;
-    } else if (outputFloatSize < 4) {
-        EDB_PERRF("WARNING: The size of the output float for AVG must be exactly 4 or 8. Defaulting to 4.");
-        aggFunc->colSize = 4;
-    } else {
-        aggFunc->colSize = outputFloatSize;
-    }
-    aggFunc->reset = avgReset;
-    aggFunc->add = avgAdd;
-    aggFunc->compute = avgCompute;
+embedDBAggregateFunc *
+createAvgAggregate(uint8_t colNum,
+		   int8_t  outputFloatSize)
+{
+  embedDBAggregateFunc* aggFunc = NULL;
 
-    return aggFunc;
+  if (EDB_WITH_HEAP) {
+    aggFunc = malloc(sizeof(embedDBAggregateFunc));
+    if (!aggFunc) {
+      EDB_PERRF("ERROR: no memory for avg aggregate function.\n");
+    }
+    else {    
+      struct avgState * state = malloc(sizeof(struct avgState));
+      if (!state) {
+	EDB_PERRF("ERROR: no memory for state of avg aggregate function.\n");
+	free(aggFunc);
+	aggFunc = NULL;
+      }
+      else {
+	state->colNum = colNum;
+	aggFunc->state = state;
+	if ((outputFloatSize > 8) ||
+	    ((outputFloatSize < 8) && (outputFloatSize > 4))) {
+	  EDB_PERRF("WARNING: The size of the output float for AVG must be exactly 4 or 8. Defaulting to 8.\n");
+	  aggFunc->colSize = 8;
+	}
+	else if (outputFloatSize < 4) {
+	  EDB_PERRF("WARNING: The size of the output float for AVG must be exactly 4 or 8. Defaulting to 4.\n");
+	  aggFunc->colSize = 4;
+	}
+	else {
+	  aggFunc->colSize = outputFloatSize;
+	}
+	aggFunc->reset   = avgReset;
+	aggFunc->add     = avgAdd;
+	aggFunc->compute = avgCompute;
+      }
+    }
+  }
+  
+  return aggFunc;
 }
 
 /**
  * @brief	Completely free a chain of functions recursively after it's already been closed.
  */
 void embedDBFreeOperatorRecursive(embedDBOperator** op) {
-    if ((*op)->input != NULL) {
-        embedDBFreeOperatorRecursive(&(*op)->input);
-    }
-    if ((*op)->state != NULL) {
-        free((*op)->state);
-        (*op)->state = NULL;
-    }
-    if ((*op)->schema != NULL) {
-        embedDBFreeSchema(&(*op)->schema);
-    }
-    if ((*op)->recordBuffer != NULL) {
-        free((*op)->recordBuffer);
-        (*op)->recordBuffer = NULL;
+  if ((*op)->input) {
+    embedDBFreeOperatorRecursive(&(*op)->input);
+  }
+  if ((*op)->state && EDB_WITH_HEAP) {
+    free((*op)->state);
+    (*op)->state = NULL;
+  }
+  if ((*op)->schema) {
+    embedDBFreeSchema(&(*op)->schema);
+  }
+  if (EDB_WITH_HEAP) {
+    if ((*op)->recordBuffer) {
+      free((*op)->recordBuffer);
+      (*op)->recordBuffer = NULL;
     }
     free(*op);
-    (*op) = NULL;
+  }
+  (*op) = NULL;
 }

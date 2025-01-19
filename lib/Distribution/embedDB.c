@@ -33,7 +33,7 @@
  *  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  *  POSSIBILITY OF SUCH DAMAGE.
  */
-/******************************************************************************/
+/******************************************************************************/  
 /************************************************************spline.c************************************************************/
 /******************************************************************************/
 /**
@@ -68,9 +68,9 @@
  *  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  *  POSSIBILITY OF SUCH DAMAGE.
  */
-/******************************************************************************/
+/******************************************************************************/    
 
-#if defined(ARDUINO)
+#if defined(ARDUINO) 
 #endif
 
 /**
@@ -283,20 +283,20 @@ void splineBuild(spline *spl, void **data, id_t size, size_t maxError) {
  */
 void splinePrint(spline *spl) {
     if (spl == NULL) {
-        printf("No spline to print.\n");
+        EDB_PRINTF("No spline to print.\n");
         return;
     }
-    printf("Spline max error (%lu):\n", spl->maxError);
-    printf("Spline points (%lu):\n", spl->count);
+    EDB_PRINTF("Spline max error (%" PRIu32 "):\n", spl->maxError);
+    EDB_PRINTF("Spline points (%zu):\n", spl->count);
     uint64_t keyVal = 0;
     uint32_t page = 0;
-    for (id_t i = 0; i < spl->count; i++) {
+    for (uint32_t i = 0; i < spl->count; i++) {
         void *point = splinePointLocation(spl, i);
         memcpy(&keyVal, point, spl->keySize);
         memcpy(&page, (int8_t *)point + spl->keySize, sizeof(uint32_t));
-        printf("[%lu]: (%lu, %li)\n", i, keyVal, page);
+        EDB_PRINTF("[%" PRIu32 "]: (%" PRIu64 ", %" PRIu32 ")\n", i, keyVal, page);
     }
-    printf("\n");
+    EDB_PRINTF("\n");
 }
 
 /**
@@ -467,9 +467,9 @@ void *splinePointLocation(spline *spl, size_t pointIndex) {
  *  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  *  POSSIBILITY OF SUCH DAMAGE.
  */
-/******************************************************************************/
+/******************************************************************************/         
 
-#if defined(ARDUINO)
+#if defined(ARDUINO) 
 #endif
 
 /* Helper Functions */
@@ -491,9 +491,9 @@ void readToWriteBufVar(embedDBState *state);
 
 void printBitmap(char *bm) {
     for (int8_t i = 0; i <= 7; i++) {
-        printf(" " BYTE_TO_BINARY_PATTERN "", BYTE_TO_BINARY(*(bm + i)));
+        EDB_PRINTF(" " BYTE_TO_BINARY_PATTERN "", BYTE_TO_BINARY(*(bm + i)));
     }
-    printf("\n");
+    EDB_PRINTF("\n");
 }
 
 /**
@@ -562,33 +562,25 @@ void *embedDBGetMaxKey(embedDBState *state, void *buffer) {
  */
 int8_t embedDBInit(embedDBState *state, size_t indexMaxError) {
     if (state->keySize > 8) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: Key size is too large. Max key size is 8 bytes.\n");
-#endif
+        EDB_PERRF("ERROR: Key size is too large. Max key size is 8 bytes.\n");
         return -1;
     }
 
     /* check the number of allocated pages is a multiple of the erase size */
     if (state->numDataPages % state->eraseSizeInPages != 0) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: The number of allocated data pages must be divisible by the erase size in pages.\n");
-#endif
+        EDB_PERRF("ERROR: The number of allocated data pages must be divisible by the erase size in pages.\n");
         return -1;
     }
 
     if (state->numDataPages < (EMBEDDB_USING_RECORD_LEVEL_CONSISTENCY(state->parameters) ? 4 : 2) * state->eraseSizeInPages) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: The minimum number of data pages is twice the eraseSizeInPages or 4 times the eraseSizeInPages if using record-level consistency.\n");
-#endif
+        EDB_PERRF("ERROR: The minimum number of data pages is twice the eraseSizeInPages or 4 times the eraseSizeInPages if using record-level consistency.\n");
         return -1;
     }
 
     state->recordSize = state->keySize + state->dataSize;
     if (EMBEDDB_USING_VDATA(state->parameters)) {
         if (state->numVarPages % state->eraseSizeInPages != 0) {
-#ifdef PRINT_ERRORS
-            printf("ERROR: The number of allocated variable data pages must be divisible by the erase size in pages.\n");
-#endif
+            EDB_PERRF("ERROR: The number of allocated variable data pages must be divisible by the erase size in pages.\n");
             return -1;
         }
         state->recordSize += 4;
@@ -602,9 +594,7 @@ int8_t embedDBInit(embedDBState *state, size_t indexMaxError) {
     state->headerSize = 6;
     if (EMBEDDB_USING_INDEX(state->parameters)) {
         if (state->numIndexPages % state->eraseSizeInPages != 0) {
-#ifdef PRINT_ERRORS
-            printf("ERROR: The number of allocated index pages must be divisible by the erase size in pages.\n");
-#endif
+            EDB_PERRF("ERROR: The number of allocated index pages must be divisible by the erase size in pages.\n");
             return -1;
         }
         state->headerSize += state->bitmapSize;
@@ -628,18 +618,16 @@ int8_t embedDBInit(embedDBState *state, size_t indexMaxError) {
     initBufferPage(state, 0);
 
     if (state->numDataPages < (EMBEDDB_USING_INDEX(state->parameters) * 2 + 2) * state->eraseSizeInPages) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: Number of pages allocated must be at least twice erase block size for embedDB and four times when using indexing. Memory pages: %d\n", state->numDataPages);
-#endif
+        EDB_PERRF("ERROR: Number of pages allocated must be at least twice "
+		  "erase block size for embedDB and four times when using indexing. "
+		  "Memory pages: %" PRIu32 "\n", state->numDataPages);
         return -1;
     }
 
     /* Initalize the spline structure if being used */
     if (!EMBEDDB_USING_BINARY_SEARCH(state->parameters)) {
         if (state->numSplinePoints < 4) {
-#ifdef PRINT_ERRORS
-            printf("ERROR: Unable to setup spline with less than 4 points.");
-#endif
+            EDB_PERRF("ERROR: Unable to setup spline with less than 4 points.");
             return -1;
         }
         state->spl = malloc(sizeof(spline));
@@ -658,9 +646,7 @@ int8_t embedDBInit(embedDBState *state, size_t indexMaxError) {
     int8_t indexInitResult = 0;
     if (EMBEDDB_USING_INDEX(state->parameters)) {
         if (state->bufferSizeInBlocks < 4) {
-#ifdef PRINT_ERRORS
-            printf("ERROR: embedDB using index requires at least 4 page buffers.\n");
-#endif
+            EDB_PERRF("ERROR: embedDB using index requires at least 4 page buffers.\n");
             return -1;
         } else {
             indexInitResult = embedDBInitIndex(state);
@@ -678,9 +664,7 @@ int8_t embedDBInit(embedDBState *state, size_t indexMaxError) {
     int8_t varDataInitResult = 0;
     if (EMBEDDB_USING_VDATA(state->parameters)) {
         if (state->bufferSizeInBlocks < 4 + (EMBEDDB_USING_INDEX(state->parameters) ? 2 : 0)) {
-#ifdef PRINT_ERRORS
-            printf("ERROR: embedDB using variable records requires at least 4 page buffers if there is no index and 6 if there is.\n");
-#endif
+            EDB_PERRF("ERROR: embedDB using variable records requires at least 4 page buffers if there is no index and 6 if there is.\n");
             return -1;
         } else {
             varDataInitResult = embedDBInitVarData(state);
@@ -702,9 +686,7 @@ int8_t embedDBInitData(embedDBState *state) {
     state->minDataPageId = 0;
 
     if (state->dataFile == NULL) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: No data file provided!\n");
-#endif
+        EDB_PERRF("ERROR: No data file provided!\n");
         return -1;
     }
 
@@ -730,9 +712,7 @@ int8_t embedDBInitData(embedDBState *state) {
     }
 
     if (!openStatus) {
-#ifdef PRINT_ERRORS
-        printf("Error: Can't open data file!\n");
-#endif
+        EDB_PERRF("Error: Can't open data file!\n");
         return -1;
     }
 
@@ -901,9 +881,7 @@ int8_t embedDBInitDataFromFileWithRecordLevelConsistency(embedDBState *state) {
     if (pagesToBlockBoundary == blockSize) {
         int8_t eraseSuccess = state->fileInterface->erase(count, count + blockSize, state->pageSize, state->dataFile);
         if (!eraseSuccess) {
-#ifdef PRINT_ERRORS
-            printf("Error: Unable to erase data page during recovery!\n");
-#endif
+            EDB_PERRF("Error: Unable to erase data page during recovery!\n");
             return -1;
         }
     }
@@ -950,9 +928,7 @@ int8_t embedDBInitDataFromFileWithRecordLevelConsistency(embedDBState *state) {
         /* need to read the max page into read buffer again so we can copy into the write buffer */
         int8_t readSuccess = readPage(state, (state->rlcPhysicalStartingPage + rlcMaxPage) % state->numDataPages);
         if (readSuccess != 0) {
-#ifdef PRINT_ERRORS
-            printf("Error: Can't read page in data file that was previously read!\n");
-#endif
+            EDB_PERRF("Error: Can't read page in data file that was previously read!\n");
             return -1;
         }
         memcpy(state->buffer, buffer, state->pageSize);
@@ -964,9 +940,7 @@ int8_t embedDBInitDataFromFileWithRecordLevelConsistency(embedDBState *state) {
         eraseEndingPage = eraseStartingPage + blockSize;
         int8_t eraseSuccess = state->fileInterface->erase(eraseStartingPage, eraseEndingPage, state->pageSize, state->dataFile);
         if (!eraseSuccess) {
-#ifdef PRINT_ERRORS
-            printf("Error: Unable to erase pages in data file!\n");
-#endif
+            EDB_PERRF("Error: Unable to erase pages in data file!\n");
             return -1;
         }
         eraseStartingPage = eraseEndingPage % state->numDataPages;
@@ -1039,23 +1013,17 @@ int8_t embedDBInitIndex(embedDBState *state) {
     state->minIndexPageId = 0;
 
     if (state->numIndexPages < state->eraseSizeInPages * 2) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: Minimum index space is two erase blocks\n");
-#endif
+        EDB_PERRF("ERROR: Minimum index space is two erase blocks\n");
         return -1;
     }
 
     if (state->numIndexPages % state->eraseSizeInPages != 0) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: Ensure index space is a multiple of erase block size\n");
-#endif
+        EDB_PERRF("ERROR: Ensure index space is a multiple of erase block size\n");
         return -1;
     }
 
     if (state->indexFile == NULL) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: No index file provided!\n");
-#endif
+        EDB_PERRF("ERROR: No index file provided!\n");
         return -1;
     }
 
@@ -1068,9 +1036,7 @@ int8_t embedDBInitIndex(embedDBState *state) {
 
     int8_t openStatus = state->fileInterface->open(state->indexFile, EMBEDDB_FILE_MODE_W_PLUS_B);
     if (!openStatus) {
-#ifdef PRINT_ERRORS
-        printf("Error: Can't open index file!\n");
-#endif
+        EDB_PERRF("Error: Can't open index file!\n");
         return -1;
     }
 
@@ -1136,9 +1102,7 @@ int8_t embedDBInitVarData(embedDBState *state) {
 
     int8_t openResult = state->fileInterface->open(state->varFile, EMBEDDB_FILE_MODE_W_PLUS_B);
     if (!openResult) {
-#ifdef PRINT_ERRORS
-        printf("Error: Can't open variable data file!\n");
-#endif
+        EDB_PERRF("Error: Can't open variable data file!\n");
         return -1;
     }
 
@@ -1238,9 +1202,7 @@ int8_t embedDBInitVarDataFromFile(embedDBState *state) {
     id_t minVarPageId = 0;
     int8_t readResult = readVariablePage(state, physicalPageIDOfSmallestData);
     if (readResult != 0) {
-#ifdef PRINT_ERRORS
-        printf("Error reading variable page with smallest data. \n");
-#endif
+        EDB_PERRF("Error reading variable page with smallest data. \n");
         return -1;
     }
 
@@ -1258,9 +1220,7 @@ int8_t embedDBInitVarDataFromFile(embedDBState *state) {
             dataBuffer = (int8_t *)state->buffer + state->pageSize * EMBEDDB_DATA_READ_BUFFER;
             readResult = readPage(state, state->minDataPageId % state->numDataPages);
             if (readResult != 0) {
-#ifdef PRINT_ERRORS
-                printf("Error reading page in data file when recovering variable data. \n");
-#endif
+                EDB_PERRF("Error reading page in data file when recovering variable data. \n");
                 return -1;
             }
         }
@@ -1286,11 +1246,21 @@ int8_t embedDBInitVarDataFromFile(embedDBState *state) {
  * @param   state   embedDB state structure
  */
 void embedDBPrintInit(embedDBState *state) {
-    printf("EmbedDB State Initialization Stats:\n");
-    printf("Buffer size: %d  Page size: %d\n", state->bufferSizeInBlocks, state->pageSize);
-    printf("Key size: %d Data size: %d %sRecord size: %d\n", state->keySize, state->dataSize, EMBEDDB_USING_VDATA(state->parameters) ? "Variable data pointer size: 4 " : "", state->recordSize);
-    printf("Use index: %d  Max/min: %d Sum: %d Bmap: %d\n", EMBEDDB_USING_INDEX(state->parameters), EMBEDDB_USING_MAX_MIN(state->parameters), EMBEDDB_USING_SUM(state->parameters), EMBEDDB_USING_BMAP(state->parameters));
-    printf("Header size: %d  Records per page: %d\n", state->headerSize, state->maxRecordsPerPage);
+    EDB_PRINTF("EmbedDB State Initialization Stats:\n");
+    EDB_PRINTF("Buffer size: %" PRId8 "  Page size: %" PRId16 "\n",
+	       state->bufferSizeInBlocks, state->pageSize);
+    EDB_PRINTF("Key size: %" PRId8 " Data size: %" PRId8 " %sRecord size: %" PRId8 "\n",
+	       state->keySize, state->dataSize,
+	       EMBEDDB_USING_VDATA(state->parameters) ? "Variable data pointer size: 4 " : "",
+	       state->recordSize);
+    EDB_PRINTF("Use index: %d  Max/min: %d Sum: %d Bmap: %d\n",
+	       EMBEDDB_USING_INDEX(state->parameters),
+	       EMBEDDB_USING_MAX_MIN(state->parameters),
+	       EMBEDDB_USING_SUM(state->parameters),
+	       EMBEDDB_USING_BMAP(state->parameters));
+    EDB_PRINTF("Header size: %" PRId8 "  Records per page: %" PRId16 "\n",
+	       state->headerSize,
+	       state->maxRecordsPerPage);
 }
 
 /**
@@ -1439,9 +1409,7 @@ int8_t embedDBPut(embedDBState *state, void *key, void *data) {
             previousKey = (int8_t *)state->buffer + (state->recordSize * (count - 1)) + state->headerSize;
         }
         if (state->compareKey(key, previousKey) != 1) {
-#ifdef PRINT_ERRORS
-            printf("Keys must be strictly ascending order. Insert Failed.\n");
-#endif
+            EDB_PERRF("Keys must be strictly ascending order. Insert Failed.\n");
             return 1;
         }
     }
@@ -1567,9 +1535,7 @@ int8_t shiftRecordLevelConsistencyBlocks(embedDBState *state) {
         eraseEndingPage = eraseStartingPage + state->eraseSizeInPages;
         int8_t eraseSuccess = state->fileInterface->erase(eraseStartingPage, eraseEndingPage, state->pageSize, state->dataFile);
         if (!eraseSuccess) {
-#ifdef PRINT_ERRORS
-            printf("Error: Unable to erase pages in data file when shifting record level consistency blocks!\n");
-#endif
+            EDB_PERRF("Error: Unable to erase pages in data file when shifting record level consistency blocks!\n");
             return -1;
         }
         eraseStartingPage = eraseEndingPage % state->numDataPages;
@@ -1613,9 +1579,7 @@ void updateMaxiumError(embedDBState *state, void *buffer) {
  */
 int8_t embedDBPutVar(embedDBState *state, void *key, void *data, void *variableData, uint32_t length) {
     if (!EMBEDDB_USING_VDATA(state->parameters)) {
-#ifdef PRINT_ERRORS
-        printf("Error: Can't insert variable data because it is not enabled\n");
-#endif
+        EDB_PERRF("Error: Can't insert variable data because it is not enabled\n");
         return -1;
     }
 
@@ -1933,9 +1897,7 @@ int8_t embedDBGet(embedDBState *state, void *key, void *data) {
     }
 
     if (searchResult != 0) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: embedDBGet was unable to find page to search for record\n");
-#endif
+        EDB_PERRF("ERROR: embedDBGet was unable to find page to search for record\n");
         return -1;
     }
 
@@ -1963,9 +1925,7 @@ int8_t embedDBGet(embedDBState *state, void *key, void *data) {
  */
 int8_t embedDBGetVar(embedDBState *state, void *key, void *data, embedDBVarDataStream **varData) {
     if (!EMBEDDB_USING_VDATA(state->parameters)) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: embedDBGetVar called when not using variable data\n");
-#endif
+        EDB_PERRF("ERROR: embedDBGetVar called when not using variable data\n");
         return 0;
     }
     void *outputBuffer = (int8_t *)state->buffer;
@@ -2021,13 +1981,11 @@ void embedDBInitIterator(embedDBState *state, embedDBIterator *it) {
         }
     }
 
-#ifdef PRINT_ERRORS
     if (!EMBEDDB_USING_BMAP(state->parameters)) {
-        printf("WARN: Iterator not using index. If this is not intended, ensure that the embedDBState is using a bitmap and was initialized with an index file\n");
+        EDB_PERRF("WARN: Iterator not using index. If this is not intended, ensure that the embedDBState is using a bitmap and was initialized with an index file\n");
     } else if (!EMBEDDB_USING_INDEX(state->parameters)) {
-        printf("WARN: Iterator not using index to full extent. If this is not intended, ensure that the embedDBState was initialized with an index file\n");
+        EDB_PERRF("WARN: Iterator not using index to full extent. If this is not intended, ensure that the embedDBState was initialized with an index file\n");
     }
-#endif
 
     /* Determine which data page should be the first examined if there is a min key and that we have spline points */
     if (state->spl->count != 0 && it->minKey != NULL && !(EMBEDDB_USING_BINARY_SEARCH(state->parameters))) {
@@ -2067,9 +2025,7 @@ int8_t embedDBFlushVar(embedDBState *state) {
     // only flush variable buffer
     id_t writeResult = writeVariablePage(state, (int8_t *)state->buffer + EMBEDDB_VAR_WRITE_BUFFER(state->parameters) * state->pageSize);
     if (writeResult == -1) {
-#ifdef PRINT_ERRORS
-        printf("Failed to write variable data page during embedDBFlushVar.");
-#endif
+        EDB_PERRF("Failed to write variable data page during embedDBFlushVar.");
         return -1;
     }
 
@@ -2096,9 +2052,7 @@ int8_t embedDBFlush(embedDBState *state) {
 
     id_t pageNum = writePage(state, buffer);
     if (pageNum == -1) {
-#ifdef PRINT_ERRORS
-        printf("Failed to write page during embedDBFlush.");
-#endif
+        EDB_PERRF("Failed to write page during embedDBFlush.");
         return -1;
     }
 
@@ -2117,9 +2071,7 @@ int8_t embedDBFlush(embedDBState *state) {
 
         id_t writeResult = writeIndexPage(state, buf);
         if (writeResult == -1) {
-#ifdef PRINT_ERRORS
-            printf("Failed to write index page during embedDBFlush.");
-#endif
+	    EDB_PERRF("Failed to write index page during embedDBFlush.");
             return -1;
         }
 
@@ -2136,9 +2088,7 @@ int8_t embedDBFlush(embedDBState *state) {
     if (EMBEDDB_USING_VDATA(state->parameters)) {
         int8_t varFlushResult = embedDBFlushVar(state);
         if (varFlushResult != 0) {
-#ifdef PRINT_ERRORS
-            printf("Failed to flush variable data page");
-#endif
+            EDB_PERRF("Failed to flush variable data page");
             return -1;
         }
     }
@@ -2173,9 +2123,9 @@ int8_t embedDBNext(embedDBState *state, embedDBIterator *it, void *key, void *da
                 // If the index page that contains this data page exists, else we must read the data page regardless cause we don't have the index saved for it
 
                 if (readIndexPage(state, indexPage % state->numIndexPages) != 0) {
-#ifdef PRINT_ERRORS
-                    printf("ERROR: Failed to read index page %i (%i)\n", indexPage, indexPage % state->numIndexPages);
-#endif
+                    EDB_PERRF("ERROR: Failed to read index page %" PRIu32 " (%" PRIu32 ")\n",
+			      indexPage,
+			      indexPage % state->numIndexPages);
                     return 0;
                 }
 
@@ -2192,9 +2142,9 @@ int8_t embedDBNext(embedDBState *state, embedDBIterator *it, void *key, void *da
         }
 
         if (searchWriteBuf == 0 && readPage(state, it->nextDataPage % state->numDataPages) != 0) {
-#ifdef PRINT_ERRORS
-            printf("ERROR: Failed to read data page %i (%i)\n", it->nextDataPage, it->nextDataPage % state->numDataPages);
-#endif
+  	    EDB_PERRF("ERROR: Failed to read data page %" PRIu32 " (%" PRIu32 ")\n",
+		      it->nextDataPage,
+		      it->nextDataPage % state->numDataPages);
             return 0;
         }
 
@@ -2240,9 +2190,7 @@ int8_t embedDBNext(embedDBState *state, embedDBIterator *it, void *key, void *da
  */
 int8_t embedDBNextVar(embedDBState *state, embedDBIterator *it, void *key, void *data, embedDBVarDataStream **varData) {
     if (!EMBEDDB_USING_VDATA(state->parameters)) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: embedDBNextVar called when not using variable data\n");
-#endif
+        EDB_PERRF("ERROR: embedDBNextVar called when not using variable data\n");
         return 0;
     }
 
@@ -2301,9 +2249,7 @@ int8_t embedDBSetupVarDataStream(embedDBState *state, void *key, embedDBVarDataS
 
     // Read in page
     if (readVariablePage(state, pageNum) != 0) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: embedDB failed to read variable page\n");
-#endif
+        EDB_PERRF("ERROR: embedDB failed to read variable page\n");
         return 2;
     }
 
@@ -2325,9 +2271,7 @@ int8_t embedDBSetupVarDataStream(embedDBState *state, void *key, embedDBVarDataS
     // Create varDataStream
     embedDBVarDataStream *varDataStream = malloc(sizeof(embedDBVarDataStream));
     if (varDataStream == NULL) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: Failed to alloc memory for embedDBVarDataStream\n");
-#endif
+        EDB_PERRF("ERROR: Failed to alloc memory for embedDBVarDataStream\n");
         return 3;
     }
 
@@ -2350,18 +2294,14 @@ int8_t embedDBSetupVarDataStream(embedDBState *state, void *key, embedDBVarDataS
  */
 uint32_t embedDBVarDataStreamRead(embedDBState *state, embedDBVarDataStream *stream, void *buffer, uint32_t length) {
     if (buffer == NULL) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: Cannot pass null buffer to embedDBVarDataStreamRead\n");
-#endif
+        EDB_PERRF("ERROR: Cannot pass null buffer to embedDBVarDataStreamRead\n");
         return 0;
     }
 
     // Read in var page containing the data to read
     uint32_t pageNum = (stream->fileOffset / state->pageSize) % state->numVarPages;
     if (readVariablePage(state, pageNum) != 0) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: Couldn't read variable data page %d\n", pageNum);
-#endif
+        EDB_PERRF("ERROR: Couldn't read variable data page %" PRIu32 "\n", pageNum);
         return 0;
     }
 
@@ -2380,9 +2320,7 @@ uint32_t embedDBVarDataStreamRead(embedDBState *state, embedDBVarDataStream *str
         if (amtRead < length && stream->bytesRead < stream->totalBytes) {
             pageNum = (pageNum + 1) % state->numVarPages;
             if (readVariablePage(state, pageNum) != 0) {
-#ifdef PRINT_ERRORS
-                printf("ERROR: Couldn't read variable data page %d\n", pageNum);
-#endif
+                EDB_PERRF("ERROR: Couldn't read variable data page %" PRIu32 "\n", pageNum);
                 return 0;
             }
             // Skip past the header
@@ -2398,12 +2336,12 @@ uint32_t embedDBVarDataStreamRead(embedDBState *state, embedDBVarDataStream *str
  * @param	state	embedDB state structure
  */
 void embedDBPrintStats(embedDBState *state) {
-    printf("Num reads: %d\n", state->numReads);
-    printf("Buffer hits: %d\n", state->bufferHits);
-    printf("Num writes: %d\n", state->numWrites);
-    printf("Num index reads: %d\n", state->numIdxReads);
-    printf("Num index writes: %d\n", state->numIdxWrites);
-    printf("Max Error: %d\n", state->maxError);
+    EDB_PRINTF("Num reads: %" PRIu32 "\n", state->numReads);
+    EDB_PRINTF("Buffer hits: %" PRIu32 "\n", state->bufferHits);
+    EDB_PRINTF("Num writes: %" PRIu32 "\n", state->numWrites);
+    EDB_PRINTF("Num index reads: %" PRIu32 "\n", state->numIdxReads);
+    EDB_PRINTF("Num index writes: %" PRIu32 "\n", state->numIdxWrites);
+    EDB_PRINTF("Max Error: %" PRId32 "\n", state->maxError);
 
     if (!EMBEDDB_USING_BINARY_SEARCH(state->parameters)) {
         splinePrint(state->spl);
@@ -2431,9 +2369,8 @@ id_t writePage(embedDBState *state, void *buffer) {
         /* Erase pages to make space for new data */
         int8_t eraseResult = state->fileInterface->erase(physicalPageNum, physicalPageNum + state->eraseSizeInPages, state->pageSize, state->dataFile);
         if (eraseResult != 1) {
-#ifdef PRINT_ERRORS
-            printf("Failed to erase data page: %i (%i)\n", pageNum, physicalPageNum);
-#endif
+	    EDB_PERRF("Failed to erase data page: %" PRIu32 " (%" PRIu32 ")\n",
+		      pageNum, physicalPageNum);
             return -1;
         }
 
@@ -2450,9 +2387,8 @@ id_t writePage(embedDBState *state, void *buffer) {
     /* Seek to page location in file */
     int32_t val = state->fileInterface->write(buffer, physicalPageNum, state->pageSize, state->dataFile);
     if (val == 0) {
-#ifdef PRINT_ERRORS
-        printf("Failed to write data page: %i (%i)\n", pageNum, physicalPageNum);
-#endif
+        EDB_PERRF("Failed to write data page: %" PRIu32 " (%" PRIu32 ")\n",
+		  pageNum, physicalPageNum);
         return -1;
     }
 
@@ -2464,9 +2400,7 @@ id_t writePage(embedDBState *state, void *buffer) {
 
 int8_t writeTemporaryPage(embedDBState *state, void *buffer) {
     if (state->dataFile == NULL) {
-#ifdef PRINT_ERRORS
-        printf("The dataFile in embedDBState was null.");
-#endif
+        EDB_PERRF("The dataFile in embedDBState was null.");
         return -3;
     }
 
@@ -2496,19 +2430,19 @@ int8_t writeTemporaryPage(embedDBState *state, void *buffer) {
 
         int8_t eraseSuccess = state->fileInterface->erase(eraseStartingPage, eraseEndingPage, state->pageSize, state->dataFile);
         if (!eraseSuccess) {
-#ifdef PRINT_ERRORS
-            printf("Failed to erase block starting at physical page %i in the data file.", state->nextRLCPhysicalPageLocation);
+	    EDB_PERRF("Failed to erase block starting at physical page %" PRIu32 " in the data file.",
+		      state->nextRLCPhysicalPageLocation);
             return -2;
-#endif
         }
     }
 
     /* Write temporary page to storage */
     int8_t writeSuccess = state->fileInterface->write(buffer, state->nextRLCPhysicalPageLocation++, state->pageSize, state->dataFile);
     if (!writeSuccess) {
-#ifdef PRINT_ERRORS
-        printf("Failed to write temporary page for record-level-consistency: Logical Page Number %i - Physical Page (%i)\n", state->nextDataPageId, state->nextRLCPhysicalPageLocation - 1);
-#endif
+        EDB_PERRF("Failed to write temporary page for record-level-consistency:"
+		  " Logical Page Number %" PRIu32 " - Physical Page (%" PRIu32 ")\n",
+		  state->nextDataPageId,
+		  state->nextRLCPhysicalPageLocation - 1);
         return -1;
     }
 
@@ -2563,9 +2497,8 @@ id_t writeIndexPage(embedDBState *state, void *buffer) {
         // Erase index pages to make room for new page
         int8_t eraseResult = state->fileInterface->erase(physicalPageNumber, physicalPageNumber + state->eraseSizeInPages, state->pageSize, state->indexFile);
         if (eraseResult != 1) {
-#ifdef PRINT_ERRORS
-            printf("Failed to erase data page: %i (%i)\n", pageNum, physicalPageNumber);
-#endif
+	    EDB_PERRF("Failed to erase data page: %" PRIu32 " (%" PRIu32 ")\n",
+		      pageNum, physicalPageNumber);
             return -1;
         }
         state->numAvailIndexPages += state->eraseSizeInPages;
@@ -2575,9 +2508,8 @@ id_t writeIndexPage(embedDBState *state, void *buffer) {
     /* Seek to page location in file */
     int32_t val = state->fileInterface->write(buffer, physicalPageNumber, state->pageSize, state->indexFile);
     if (val == 0) {
-#ifdef PRINT_ERRORS
-        printf("Failed to write index page: %i (%i)\n", pageNum, physicalPageNumber);
-#endif
+        EDB_PERRF("Failed to write index page: %" PRIu32 " (%" PRIu32 ")\n",
+		  pageNum, physicalPageNumber);
         return -1;
     }
 
@@ -2605,9 +2537,8 @@ id_t writeVariablePage(embedDBState *state, void *buffer) {
     if (state->numAvailVarPages <= 0) {
         int8_t eraseResult = state->fileInterface->erase(physicalPageId, physicalPageId + state->eraseSizeInPages, state->pageSize, state->varFile);
         if (eraseResult != 1) {
-#ifdef PRINT_ERRORS
-            printf("Failed to erase data page: %i (%i)\n", state->nextVarPageId, physicalPageId);
-#endif
+  	    EDB_PERRF("Failed to erase data page: %" PRIu32 " (%" PRIu32 ")\n",
+		      state->nextVarPageId, physicalPageId);
             return -1;
         }
         state->numAvailVarPages += state->eraseSizeInPages;
@@ -2630,9 +2561,7 @@ id_t writeVariablePage(embedDBState *state, void *buffer) {
     // Write to file
     uint32_t val = state->fileInterface->write(buffer, physicalPageId, state->pageSize, state->varFile);
     if (val == 0) {
-#ifndef PRINT
-        printf("Failed to write vardata page: %i\n", state->nextVarPageId);
-#endif
+        EDB_PERRF("Failed to write vardata page: %" PRIu32 "\n", state->nextVarPageId);
         return -1;
     }
 
@@ -2813,9 +2742,9 @@ void embedDBClose(embedDBState *state) {
  *  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  *  POSSIBILITY OF SUCH DAMAGE.
  */
-/******************************************************************************/
+/******************************************************************************/    
 
-#if defined(ARDUINO)
+#if defined(ARDUINO) 
 #endif
 
 /**
@@ -2824,8 +2753,8 @@ void embedDBClose(embedDBState *state) {
  * @param	colSizes		An array with the size of each column. Max size is 127
  * @param	colSignedness	An array describing if the data in the column is signed or unsigned. Use the defined constants embedDB_COLUMNN_SIGNED or embedDB_COLUMN_UNSIGNED
  */
-embedDBSchema *embedDBCreateSchema(uint8_t numCols, int8_t *colSizes, int8_t *colSignedness) {
-    embedDBSchema *schema = malloc(sizeof(embedDBSchema));
+embedDBSchema* embedDBCreateSchema(uint8_t numCols, int8_t* colSizes, int8_t* colSignedness) {
+    embedDBSchema* schema = malloc(sizeof(embedDBSchema));
     schema->columnSizes = malloc(numCols * sizeof(int8_t));
     schema->numCols = numCols;
     uint16_t totalSize = 0;
@@ -2834,9 +2763,7 @@ embedDBSchema *embedDBCreateSchema(uint8_t numCols, int8_t *colSizes, int8_t *co
         uint8_t colSize = colSizes[i];
         totalSize += colSize;
         if (colSize <= 0) {
-#ifdef PRINT_ERRORS
-            printf("ERROR: Column size must be greater than zero\n");
-#endif
+            EDB_PERRF("ERROR: Column size must be greater than zero\n");
             return NULL;
         }
         if (sign == embedDB_COLUMN_SIGNED) {
@@ -2844,9 +2771,7 @@ embedDBSchema *embedDBCreateSchema(uint8_t numCols, int8_t *colSizes, int8_t *co
         } else if (sign == embedDB_COLUMN_UNSIGNED) {
             schema->columnSizes[i] = colSizes[i];
         } else {
-#ifdef PRINT_ERRORS
-            printf("ERROR: Must only use embedDB_COLUMN_SIGNED or embedDB_COLUMN_UNSIGNED to describe column signedness\n");
-#endif
+            EDB_PERRF("ERROR: Must only use embedDB_COLUMN_SIGNED or embedDB_COLUMN_UNSIGNED to describe column signedness\n");
             return NULL;
         }
     }
@@ -2857,7 +2782,7 @@ embedDBSchema *embedDBCreateSchema(uint8_t numCols, int8_t *colSizes, int8_t *co
 /**
  * @brief	Free a schema. Sets the schema pointer to NULL.
  */
-void embedDBFreeSchema(embedDBSchema **schema) {
+void embedDBFreeSchema(embedDBSchema** schema) {
     if (*schema == NULL) return;
     free((*schema)->columnSizes);
     free(*schema);
@@ -2867,7 +2792,7 @@ void embedDBFreeSchema(embedDBSchema **schema) {
 /**
  * @brief	Uses schema to determine the length of buffer to allocate and callocs that space
  */
-void *createBufferFromSchema(embedDBSchema *schema) {
+void* createBufferFromSchema(embedDBSchema* schema) {
     uint16_t totalSize = 0;
     for (uint8_t i = 0; i < schema->numCols; i++) {
         totalSize += abs(schema->columnSizes[i]);
@@ -2878,20 +2803,16 @@ void *createBufferFromSchema(embedDBSchema *schema) {
 /**
  * @brief	Deep copy schema and return a pointer to the copy
  */
-embedDBSchema *copySchema(const embedDBSchema *schema) {
-    embedDBSchema *copy = malloc(sizeof(embedDBSchema));
+embedDBSchema* copySchema(const embedDBSchema* schema) {
+    embedDBSchema* copy = malloc(sizeof(embedDBSchema));
     if (copy == NULL) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: malloc failed while copying schema\n");
-#endif
+        EDB_PERRF("ERROR: malloc failed while copying schema\n");
         return NULL;
     }
     copy->numCols = schema->numCols;
     copy->columnSizes = malloc(schema->numCols * sizeof(int8_t));
     if (copy->columnSizes == NULL) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: malloc failed while copying schema\n");
-#endif
+        EDB_PERRF("ERROR: malloc failed while copying schema\n");
         return NULL;
     }
     memcpy(copy->columnSizes, schema->columnSizes, schema->numCols * sizeof(int8_t));
@@ -2901,7 +2822,7 @@ embedDBSchema *copySchema(const embedDBSchema *schema) {
 /**
  * @brief	Finds byte offset of the column from the beginning of the record
  */
-uint16_t getColOffsetFromSchema(embedDBSchema *schema, uint8_t colNum) {
+uint16_t getColOffsetFromSchema(embedDBSchema* schema, uint8_t colNum) {
     uint16_t pos = 0;
     for (uint8_t i = 0; i < colNum; i++) {
         pos += abs(schema->columnSizes[i]);
@@ -2912,7 +2833,7 @@ uint16_t getColOffsetFromSchema(embedDBSchema *schema, uint8_t colNum) {
 /**
  * @brief	Calculates record size from schema
  */
-uint16_t getRecordSizeFromSchema(embedDBSchema *schema) {
+uint16_t getRecordSizeFromSchema(embedDBSchema* schema) {
     uint16_t size = 0;
     for (uint8_t i = 0; i < schema->numCols; i++) {
         size += abs(schema->columnSizes[i]);
@@ -2920,15 +2841,15 @@ uint16_t getRecordSizeFromSchema(embedDBSchema *schema) {
     return size;
 }
 
-void printSchema(embedDBSchema *schema) {
+void printSchema(embedDBSchema* schema) {
     for (uint8_t i = 0; i < schema->numCols; i++) {
         if (i) {
-            printf(", ");
+            EDB_PRINTF(", ");
         }
         int8_t col = schema->columnSizes[i];
-        printf("%sint%d", embedDB_IS_COL_SIGNED(col) ? "" : "u", abs(col));
+        EDB_PRINTF("%sint%d", embedDB_IS_COL_SIGNED(col) ? "" : "u", abs(col));
     }
-    printf("\n");
+    EDB_PRINTF("\n");
 }
 
 /************************************************************advancedQueries.c************************************************************/
@@ -2965,18 +2886,18 @@ void printSchema(embedDBSchema *schema) {
  *  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  *  POSSIBILITY OF SUCH DAMAGE.
  */
-/******************************************************************************/
+/******************************************************************************/  
 
-#if defined(ARDUINO)
+#if defined(ARDUINO) 
 #endif
 
 /**
  * @return	Returns -1, 0, 1 as a comparator normally would
  */
-int8_t compareUnsignedNumbers(const void *num1, const void *num2, int8_t numBytes) {
+int8_t compareUnsignedNumbers(const void* num1, const void* num2, int8_t numBytes) {
     // Cast the pointers to unsigned char pointers for byte-wise comparison
-    const uint8_t *bytes1 = (const uint8_t *)num1;
-    const uint8_t *bytes2 = (const uint8_t *)num2;
+    const uint8_t* bytes1 = (const uint8_t*)num1;
+    const uint8_t* bytes2 = (const uint8_t*)num2;
 
     for (int8_t i = numBytes - 1; i >= 0; i--) {
         if (bytes1[i] < bytes2[i]) {
@@ -2993,10 +2914,10 @@ int8_t compareUnsignedNumbers(const void *num1, const void *num2, int8_t numByte
 /**
  * @return	Returns -1, 0, 1 as a comparator normally would
  */
-int8_t compareSignedNumbers(const void *num1, const void *num2, int8_t numBytes) {
+int8_t compareSignedNumbers(const void* num1, const void* num2, int8_t numBytes) {
     // Cast the pointers to unsigned char pointers for byte-wise comparison
-    const uint8_t *bytes1 = (const uint8_t *)num1;
-    const uint8_t *bytes2 = (const uint8_t *)num2;
+    const uint8_t* bytes1 = (const uint8_t*)num1;
+    const uint8_t* bytes2 = (const uint8_t*)num2;
 
     // Check the sign bits of the most significant bytes
     int sign1 = bytes1[numBytes - 1] & 0x80;
@@ -3023,8 +2944,8 @@ int8_t compareSignedNumbers(const void *num1, const void *num2, int8_t numBytes)
 /**
  * @return	0 or 1 to indicate if inequality is true
  */
-int8_t compare(void *a, uint8_t operation, void *b, int8_t isSigned, int8_t numBytes) {
-    int8_t (*compFunc)(const void *num1, const void *num2, int8_t numBytes) = isSigned ? compareSignedNumbers : compareUnsignedNumbers;
+int8_t compare(void* a, uint8_t operation, void* b, int8_t isSigned, int8_t numBytes) {
+    int8_t (*compFunc)(const void* num1, const void* num2, int8_t numBytes) = isSigned ? compareSignedNumbers : compareUnsignedNumbers;
     switch (operation) {
         case SELECT_GT:
             return compFunc(a, b, numBytes) > 0;
@@ -3047,42 +2968,32 @@ int8_t compare(void *a, uint8_t operation, void *b, int8_t isSigned, int8_t numB
  * @brief	Extract a record from an operator
  * @return	1 if a record was returned, 0 if there are no more rows to return
  */
-int8_t exec(embedDBOperator *op) {
+int8_t exec(embedDBOperator* op) {
     return op->next(op);
 }
 
-void initTableScan(embedDBOperator *op) {
+void initTableScan(embedDBOperator* op) {
     if (op->input != NULL) {
-#ifdef PRINT_ERRORS
-        printf("WARNING: TableScan operator should not have an input operator\n");
-#endif
+        EDB_PERRF("WARNING: TableScan operator should not have an input operator\n");
     }
     if (op->schema == NULL) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: TableScan operator needs its schema defined\n");
-#endif
+        EDB_PERRF("ERROR: TableScan operator needs its schema defined\n");
         return;
     }
 
     if (op->schema->numCols < 2) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: When creating a table scan, you must include at least two columns: one for the key and one for the data from the iterator\n");
-#endif
+        EDB_PERRF("ERROR: When creating a table scan, you must include at least two columns: one for the key and one for the data from the iterator\n");
         return;
     }
 
     // Check that the provided key schema matches what is in the state
-    embedDBState *embedDBstate = (embedDBState *)(((void **)op->state)[0]);
+    embedDBState* embedDBstate = (embedDBState*)(((void**)op->state)[0]);
     if (op->schema->columnSizes[0] <= 0 || abs(op->schema->columnSizes[0]) != embedDBstate->keySize) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: Make sure the the key column is at index 0 of the schema initialization and that it matches the keySize in the state and is unsigned\n");
-#endif
+        EDB_PERRF("ERROR: Make sure the the key column is at index 0 of the schema initialization and that it matches the keySize in the state and is unsigned\n");
         return;
     }
     if (getRecordSizeFromSchema(op->schema) != (embedDBstate->keySize + embedDBstate->dataSize)) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: Size of provided schema doesn't match the size that will be returned by the provided iterator\n");
-#endif
+        EDB_PERRF("ERROR: Size of provided schema doesn't match the size that will be returned by the provided iterator\n");
         return;
     }
 
@@ -3090,34 +3001,30 @@ void initTableScan(embedDBOperator *op) {
     if (op->recordBuffer == NULL) {
         op->recordBuffer = createBufferFromSchema(op->schema);
         if (op->recordBuffer == NULL) {
-#ifdef PRINT_ERRORS
-            printf("ERROR: Failed to allocate buffer for TableScan operator\n");
-#endif
+            EDB_PERRF("ERROR: Failed to allocate buffer for TableScan operator\n");
             return;
         }
     }
 }
 
-int8_t nextTableScan(embedDBOperator *op) {
+int8_t nextTableScan(embedDBOperator* op) {
     // Check that a schema was set
     if (op->schema == NULL) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: Must provide a base schema for a table scan operator\n");
-#endif
+        EDB_PERRF("ERROR: Must provide a base schema for a table scan operator\n");
         return 0;
     }
 
     // Get next record
-    embedDBState *state = (embedDBState *)(((void **)op->state)[0]);
-    embedDBIterator *it = (embedDBIterator *)(((void **)op->state)[1]);
-    if (!embedDBNext(state, it, op->recordBuffer, (int8_t *)op->recordBuffer + state->keySize)) {
+    embedDBState* state = (embedDBState*)(((void**)op->state)[0]);
+    embedDBIterator* it = (embedDBIterator*)(((void**)op->state)[1]);
+    if (!embedDBNext(state, it, op->recordBuffer, (int8_t*)op->recordBuffer + state->keySize)) {
         return 0;
     }
 
     return 1;
 }
 
-void closeTableScan(embedDBOperator *op) {
+void closeTableScan(embedDBOperator* op) {
     embedDBFreeSchema(&op->schema);
     free(op->recordBuffer);
     op->recordBuffer = NULL;
@@ -3131,32 +3038,26 @@ void closeTableScan(embedDBOperator *op) {
  * @param	it			An initialized iterator setup to read relevent records for this query
  * @param	baseSchema	The schema of the database being read from
  */
-embedDBOperator *createTableScanOperator(embedDBState *state, embedDBIterator *it, embedDBSchema *baseSchema) {
+embedDBOperator* createTableScanOperator(embedDBState* state, embedDBIterator* it, embedDBSchema* baseSchema) {
     // Ensure all fields are not NULL
     if (state == NULL || it == NULL || baseSchema == NULL) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: All parameters must be provided to create a TableScan operator\n");
-#endif
+        EDB_PERRF("ERROR: All parameters must be provided to create a TableScan operator\n");
         return NULL;
     }
 
-    embedDBOperator *op = malloc(sizeof(embedDBOperator));
+    embedDBOperator* op = malloc(sizeof(embedDBOperator));
     if (op == NULL) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: malloc failed while creating TableScan operator\n");
-#endif
+        EDB_PERRF("ERROR: malloc failed while creating TableScan operator\n");
         return NULL;
     }
 
-    op->state = malloc(2 * sizeof(void *));
+    op->state = malloc(2 * sizeof(void*));
     if (op->state == NULL) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: malloc failed while creating TableScan operator\n");
-#endif
+        EDB_PERRF("ERROR: malloc failed while creating TableScan operator\n");
         return NULL;
     }
-    memcpy(op->state, &state, sizeof(void *));
-    memcpy((int8_t *)op->state + sizeof(void *), &it, sizeof(void *));
+    memcpy(op->state, &state, sizeof(void*));
+    memcpy((int8_t*)op->state + sizeof(void*), &it, sizeof(void*));
 
     op->schema = copySchema(baseSchema);
     op->input = NULL;
@@ -3169,11 +3070,9 @@ embedDBOperator *createTableScanOperator(embedDBState *state, embedDBIterator *i
     return op;
 }
 
-void initProjection(embedDBOperator *op) {
+void initProjection(embedDBOperator* op) {
     if (op->input == NULL) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: Projection operator needs an input operator\n");
-#endif
+        EDB_PERRF("ERROR: Projection operator needs an input operator\n");
         return;
     }
 
@@ -3181,25 +3080,21 @@ void initProjection(embedDBOperator *op) {
     op->input->init(op->input);
 
     // Get state
-    uint8_t numCols = *(uint8_t *)op->state;
-    uint8_t *cols = (uint8_t *)op->state + 1;
-    const embedDBSchema *inputSchema = op->input->schema;
+    uint8_t numCols = *(uint8_t*)op->state;
+    uint8_t* cols = (uint8_t*)op->state + 1;
+    const embedDBSchema* inputSchema = op->input->schema;
 
     // Init output schema
     if (op->schema == NULL) {
         op->schema = malloc(sizeof(embedDBSchema));
         if (op->schema == NULL) {
-#ifdef PRINT_ERRORS
-            printf("ERROR: Failed to allocate space for projection schema\n");
-#endif
+            EDB_PERRF("ERROR: Failed to allocate space for projection schema\n");
             return;
         }
         op->schema->numCols = numCols;
         op->schema->columnSizes = malloc(numCols * sizeof(int8_t));
         if (op->schema->columnSizes == NULL) {
-#ifdef PRINT_ERRORS
-            printf("ERROR: Failed to allocate space for projection while building schema\n");
-#endif
+            EDB_PERRF("ERROR: Failed to allocate space for projection while building schema\n");
             return;
         }
         for (uint8_t i = 0; i < numCols; i++) {
@@ -3211,18 +3106,16 @@ void initProjection(embedDBOperator *op) {
     if (op->recordBuffer == NULL) {
         op->recordBuffer = createBufferFromSchema(op->schema);
         if (op->recordBuffer == NULL) {
-#ifdef PRINT_ERRORS
-            printf("ERROR: Failed to allocate buffer for TableScan operator\n");
-#endif
+            EDB_PERRF("ERROR: Failed to allocate buffer for TableScan operator\n");
             return;
         }
     }
 }
 
-int8_t nextProjection(embedDBOperator *op) {
-    uint8_t numCols = *(uint8_t *)op->state;
-    uint8_t *cols = (uint8_t *)op->state + 1;
-    embedDBSchema *inputSchema = op->input->schema;
+int8_t nextProjection(embedDBOperator* op) {
+    uint8_t numCols = *(uint8_t*)op->state;
+    uint8_t* cols = (uint8_t*)op->state + 1;
+    embedDBSchema* inputSchema = op->input->schema;
 
     // Get next record
     if (op->input->next(op->input)) {
@@ -3231,7 +3124,7 @@ int8_t nextProjection(embedDBOperator *op) {
             uint8_t col = cols[colIdx];
             uint8_t colSize = abs(inputSchema->columnSizes[col]);
             uint16_t srcColPos = getColOffsetFromSchema(inputSchema, col);
-            memcpy((int8_t *)op->recordBuffer + curColPos, (int8_t *)op->input->recordBuffer + srcColPos, colSize);
+            memcpy((int8_t*)op->recordBuffer + curColPos, (int8_t*)op->input->recordBuffer + srcColPos, colSize);
             curColPos += colSize;
         }
         return 1;
@@ -3240,7 +3133,7 @@ int8_t nextProjection(embedDBOperator *op) {
     }
 }
 
-void closeProjection(embedDBOperator *op) {
+void closeProjection(embedDBOperator* op) {
     op->input->close(op->input);
 
     embedDBFreeSchema(&op->schema);
@@ -3256,23 +3149,19 @@ void closeProjection(embedDBOperator *op) {
  * @param	numCols	How many columns will be in the final projection
  * @param	cols	The indexes of the columns to be outputted. Zero indexed. Column indexes must be strictly increasing i.e. columns must stay in the same order, can only remove columns from input
  */
-embedDBOperator *createProjectionOperator(embedDBOperator *input, uint8_t numCols, uint8_t *cols) {
+embedDBOperator* createProjectionOperator(embedDBOperator* input, uint8_t numCols, uint8_t* cols) {
     // Create state
-    uint8_t *state = malloc(numCols + 1);
+    uint8_t* state = malloc(numCols + 1);
     if (state == NULL) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: malloc failed while creating Projection operator\n");
-#endif
+        EDB_PERRF("ERROR: malloc failed while creating Projection operator\n");
         return NULL;
     }
     state[0] = numCols;
     memcpy(state + 1, cols, numCols);
 
-    embedDBOperator *op = malloc(sizeof(embedDBOperator));
+    embedDBOperator* op = malloc(sizeof(embedDBOperator));
     if (op == NULL) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: malloc failed while creating Projection operator\n");
-#endif
+        EDB_PERRF("ERROR: malloc failed while creating Projection operator\n");
         return NULL;
     }
 
@@ -3290,14 +3179,12 @@ embedDBOperator *createProjectionOperator(embedDBOperator *input, uint8_t numCol
 struct selectionInfo {
     int8_t colNum;
     int8_t operation;
-    void *compVal;
+    void* compVal;
 };
 
-void initSelection(embedDBOperator *op) {
+void initSelection(embedDBOperator* op) {
     if (op->input == NULL) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: Projection operator needs an input operator\n");
-#endif
+        EDB_PERRF("ERROR: Projection operator needs an input operator\n");
         return;
     }
 
@@ -3313,17 +3200,15 @@ void initSelection(embedDBOperator *op) {
     if (op->recordBuffer == NULL) {
         op->recordBuffer = createBufferFromSchema(op->schema);
         if (op->recordBuffer == NULL) {
-#ifdef PRINT_ERRORS
-            printf("ERROR: Failed to allocate buffer for TableScan operator\n");
-#endif
+            EDB_PERRF("ERROR: Failed to allocate buffer for TableScan operator\n");
             return;
         }
     }
 }
 
-int8_t nextSelection(embedDBOperator *op) {
-    embedDBSchema *schema = op->input->schema;
-    struct selectionInfo *state = op->state;
+int8_t nextSelection(embedDBOperator* op) {
+    embedDBSchema* schema = op->input->schema;
+    struct selectionInfo* state = op->state;
 
     int8_t colNum = state->colNum;
     uint16_t colPos = getColOffsetFromSchema(schema, colNum);
@@ -3336,7 +3221,7 @@ int8_t nextSelection(embedDBOperator *op) {
     }
 
     while (op->input->next(op->input)) {
-        void *colData = (int8_t *)op->input->recordBuffer + colPos;
+        void* colData = (int8_t*)op->input->recordBuffer + colPos;
         if (compare(colData, operation, state->compVal, isSigned, colSize)) {
             memcpy(op->recordBuffer, op->input->recordBuffer, getRecordSizeFromSchema(op->schema));
             return 1;
@@ -3346,7 +3231,7 @@ int8_t nextSelection(embedDBOperator *op) {
     return 0;
 }
 
-void closeSelection(embedDBOperator *op) {
+void closeSelection(embedDBOperator* op) {
     op->input->close(op->input);
 
     embedDBFreeSchema(&op->schema);
@@ -3363,23 +3248,19 @@ void closeSelection(embedDBOperator *op) {
  * @param	operation	A constant representing which comparison operation to perform. (e.g. SELECT_GT, SELECT_EQ, etc)
  * @param	compVal		A pointer to the value to compare with. Make sure the size of this is the same number of bytes as is described in the schema
  */
-embedDBOperator *createSelectionOperator(embedDBOperator *input, int8_t colNum, int8_t operation, void *compVal) {
-    struct selectionInfo *state = malloc(sizeof(struct selectionInfo));
+embedDBOperator* createSelectionOperator(embedDBOperator* input, int8_t colNum, int8_t operation, void* compVal) {
+    struct selectionInfo* state = malloc(sizeof(struct selectionInfo));
     if (state == NULL) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: Failed to malloc while creating Selection operator\n");
-#endif
+        EDB_PERRF("ERROR: Failed to malloc while creating Selection operator\n");
         return NULL;
     }
     state->colNum = colNum;
     state->operation = operation;
-    memcpy(&state->compVal, &compVal, sizeof(void *));
+    memcpy(&state->compVal, &compVal, sizeof(void*));
 
-    embedDBOperator *op = malloc(sizeof(embedDBOperator));
+    embedDBOperator* op = malloc(sizeof(embedDBOperator));
     if (op == NULL) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: Failed to malloc while creating Selection operator\n");
-#endif
+        EDB_PERRF("ERROR: Failed to malloc while creating Selection operator\n");
         return NULL;
     }
     op->state = state;
@@ -3397,43 +3278,37 @@ embedDBOperator *createSelectionOperator(embedDBOperator *input, int8_t colNum, 
  * @brief	A private struct to hold the state of the aggregate operator
  */
 struct aggregateInfo {
-    int8_t (*groupfunc)(const void *lastRecord, const void *record);  // Function that determins if both records are in the same group
-    embedDBAggregateFunc *functions;                                  // An array of aggregate functions
+    int8_t (*groupfunc)(const void* lastRecord, const void* record);  // Function that determins if both records are in the same group
+    embedDBAggregateFunc* functions;                                  // An array of aggregate functions
     uint32_t functionsLength;                                         // The length of the functions array
-    void *lastRecordBuffer;                                           // Buffer for the last record read by input->next
+    void* lastRecordBuffer;                                           // Buffer for the last record read by input->next
     uint16_t bufferSize;                                              // Size of the input buffer (and lastRecordBuffer)
     int8_t isLastRecordUsable;                                        // Is the data in lastRecordBuffer usable for checking if the recently read record is in the same group? Is set to 0 at start, and also after the last record
 };
 
-void initAggregate(embedDBOperator *op) {
+void initAggregate(embedDBOperator* op) {
     if (op->input == NULL) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: Aggregate operator needs an input operator\n");
-#endif
+        EDB_PERRF("ERROR: Aggregate operator needs an input operator\n");
         return;
     }
 
     // Init input
     op->input->init(op->input);
 
-    struct aggregateInfo *state = op->state;
+    struct aggregateInfo* state = op->state;
     state->isLastRecordUsable = 0;
 
     // Init output schema
     if (op->schema == NULL) {
         op->schema = malloc(sizeof(embedDBSchema));
         if (op->schema == NULL) {
-#ifdef PRINT_ERRORS
-            printf("ERROR: Failed to malloc while initializing aggregate operator\n");
-#endif
+            EDB_PERRF("ERROR: Failed to malloc while initializing aggregate operator\n");
             return;
         }
         op->schema->numCols = state->functionsLength;
         op->schema->columnSizes = malloc(state->functionsLength);
         if (op->schema->columnSizes == NULL) {
-#ifdef PRINT_ERRORS
-            printf("ERROR: Failed to malloc while initializing aggregate operator\n");
-#endif
+            EDB_PERRF("ERROR: Failed to malloc while initializing aggregate operator\n");
             return;
         }
         for (uint8_t i = 0; i < state->functionsLength; i++) {
@@ -3447,26 +3322,22 @@ void initAggregate(embedDBOperator *op) {
     if (op->recordBuffer == NULL) {
         op->recordBuffer = createBufferFromSchema(op->schema);
         if (op->recordBuffer == NULL) {
-#ifdef PRINT_ERRORS
-            printf("ERROR: Failed to malloc while initializing aggregate operator\n");
-#endif
+            EDB_PERRF("ERROR: Failed to malloc while initializing aggregate operator\n");
             return;
         }
     }
     if (state->lastRecordBuffer == NULL) {
         state->lastRecordBuffer = malloc(state->bufferSize);
         if (state->lastRecordBuffer == NULL) {
-#ifdef PRINT_ERRORS
-            printf("ERROR: Failed to malloc while initializing aggregate operator\n");
-#endif
+            EDB_PERRF("ERROR: Failed to malloc while initializing aggregate operator\n");
             return;
         }
     }
 }
 
-int8_t nextAggregate(embedDBOperator *op) {
-    struct aggregateInfo *state = op->state;
-    embedDBOperator *input = op->input;
+int8_t nextAggregate(embedDBOperator* op) {
+    struct aggregateInfo* state = op->state;
+    embedDBOperator* input = op->input;
 
     // Reset each operator
     for (int i = 0; i < state->functionsLength; i++) {
@@ -3529,11 +3400,11 @@ int8_t nextAggregate(embedDBOperator *op) {
     return 1;
 }
 
-void closeAggregate(embedDBOperator *op) {
+void closeAggregate(embedDBOperator* op) {
     op->input->close(op->input);
     op->input = NULL;
     embedDBFreeSchema(&op->schema);
-    free(((struct aggregateInfo *)op->state)->lastRecordBuffer);
+    free(((struct aggregateInfo*)op->state)->lastRecordBuffer);
     free(op->state);
     op->state = NULL;
     free(op->recordBuffer);
@@ -3547,12 +3418,10 @@ void closeAggregate(embedDBOperator *op) {
  * @param	functions		An array of aggregate functions, each of which will be updated with each record read from the iterator
  * @param	functionsLength			The number of embedDBAggregateFuncs in @c functions
  */
-embedDBOperator *createAggregateOperator(embedDBOperator *input, int8_t (*groupfunc)(const void *lastRecord, const void *record), embedDBAggregateFunc *functions, uint32_t functionsLength) {
-    struct aggregateInfo *state = malloc(sizeof(struct aggregateInfo));
+embedDBOperator* createAggregateOperator(embedDBOperator* input, int8_t (*groupfunc)(const void* lastRecord, const void* record), embedDBAggregateFunc* functions, uint32_t functionsLength) {
+    struct aggregateInfo* state = malloc(sizeof(struct aggregateInfo));
     if (state == NULL) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: Failed to malloc while creating aggregate operator\n");
-#endif
+        EDB_PERRF("ERROR: Failed to malloc while creating aggregate operator\n");
         return NULL;
     }
 
@@ -3561,11 +3430,9 @@ embedDBOperator *createAggregateOperator(embedDBOperator *input, int8_t (*groupf
     state->functionsLength = functionsLength;
     state->lastRecordBuffer = NULL;
 
-    embedDBOperator *op = malloc(sizeof(embedDBOperator));
+    embedDBOperator* op = malloc(sizeof(embedDBOperator));
     if (op == NULL) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: Failed to malloc while creating aggregate operator\n");
-#endif
+        EDB_PERRF("ERROR: Failed to malloc while creating aggregate operator\n");
         return NULL;
     }
 
@@ -3581,27 +3448,25 @@ embedDBOperator *createAggregateOperator(embedDBOperator *input, int8_t (*groupf
 }
 
 struct keyJoinInfo {
-    embedDBOperator *input2;
+    embedDBOperator* input2;
     int8_t firstCall;
 };
 
-void initKeyJoin(embedDBOperator *op) {
-    struct keyJoinInfo *state = op->state;
-    embedDBOperator *input1 = op->input;
-    embedDBOperator *input2 = state->input2;
+void initKeyJoin(embedDBOperator* op) {
+    struct keyJoinInfo* state = op->state;
+    embedDBOperator* input1 = op->input;
+    embedDBOperator* input2 = state->input2;
 
     // Init inputs
     input1->init(input1);
     input2->init(input2);
 
-    embedDBSchema *schema1 = input1->schema;
-    embedDBSchema *schema2 = input2->schema;
+    embedDBSchema* schema1 = input1->schema;
+    embedDBSchema* schema2 = input2->schema;
 
     // Check that join is compatible
     if (schema1->columnSizes[0] != schema2->columnSizes[0] || schema1->columnSizes[0] < 0 || schema2->columnSizes[0] < 0) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: The first columns of the two tables must be the key and must be the same size. Make sure you haven't projected them out.\n");
-#endif
+        EDB_PERRF("ERROR: The first columns of the two tables must be the key and must be the same size. Make sure you haven't projected them out.\n");
         return;
     }
 
@@ -3609,17 +3474,13 @@ void initKeyJoin(embedDBOperator *op) {
     if (op->schema == NULL) {
         op->schema = malloc(sizeof(embedDBSchema));
         if (op->schema == NULL) {
-#ifdef PRINT_ERRORS
-            printf("ERROR: Failed to malloc while initializing join operator\n");
-#endif
+            EDB_PERRF("ERROR: Failed to malloc while initializing join operator\n");
             return;
         }
         op->schema->numCols = schema1->numCols + schema2->numCols;
         op->schema->columnSizes = malloc(op->schema->numCols * sizeof(int8_t));
         if (op->schema->columnSizes == NULL) {
-#ifdef PRINT_ERRORS
-            printf("ERROR: Failed to malloc while initializing join operator\n");
-#endif
+            EDB_PERRF("ERROR: Failed to malloc while initializing join operator\n");
             return;
         }
         memcpy(op->schema->columnSizes, schema1->columnSizes, schema1->numCols);
@@ -3629,25 +3490,23 @@ void initKeyJoin(embedDBOperator *op) {
     // Allocate recordBuffer
     op->recordBuffer = malloc(getRecordSizeFromSchema(op->schema));
     if (op->recordBuffer == NULL) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: Failed to malloc while initializing join operator\n");
-#endif
+        EDB_PERRF("ERROR: Failed to malloc while initializing join operator\n");
         return;
     }
 
     state->firstCall = 1;
 }
 
-int8_t nextKeyJoin(embedDBOperator *op) {
-    struct keyJoinInfo *state = op->state;
-    embedDBOperator *input1 = op->input;
-    embedDBOperator *input2 = state->input2;
-    embedDBSchema *schema1 = input1->schema;
-    embedDBSchema *schema2 = input2->schema;
+int8_t nextKeyJoin(embedDBOperator* op) {
+    struct keyJoinInfo* state = op->state;
+    embedDBOperator* input1 = op->input;
+    embedDBOperator* input2 = state->input2;
+    embedDBSchema* schema1 = input1->schema;
+    embedDBSchema* schema2 = input2->schema;
 
     // We've already used this match
-    void *record1 = input1->recordBuffer;
-    void *record2 = input2->recordBuffer;
+    void* record1 = input1->recordBuffer;
+    void* record2 = input2->recordBuffer;
 
     int8_t colSize = abs(schema1->columnSizes[0]);
 
@@ -3689,7 +3548,7 @@ int8_t nextKeyJoin(embedDBOperator *op) {
             // Copy both records into the output
             uint16_t record1Size = getRecordSizeFromSchema(schema1);
             memcpy(op->recordBuffer, input1->recordBuffer, record1Size);
-            memcpy((int8_t *)op->recordBuffer + record1Size, input2->recordBuffer, getRecordSizeFromSchema(schema2));
+            memcpy((int8_t*)op->recordBuffer + record1Size, input2->recordBuffer, getRecordSizeFromSchema(schema2));
             return 1;
         }
         // Else keep advancing inputs until a match is found
@@ -3698,10 +3557,10 @@ int8_t nextKeyJoin(embedDBOperator *op) {
     return 0;
 }
 
-void closeKeyJoin(embedDBOperator *op) {
-    struct keyJoinInfo *state = op->state;
-    embedDBOperator *input1 = op->input;
-    embedDBOperator *input2 = state->input2;
+void closeKeyJoin(embedDBOperator* op) {
+    struct keyJoinInfo* state = op->state;
+    embedDBOperator* input1 = op->input;
+    embedDBOperator* input2 = state->input2;
     input1->close(input1);
     input2->close(input2);
 
@@ -3715,20 +3574,16 @@ void closeKeyJoin(embedDBOperator *op) {
 /**
  * @brief	Creates an operator for perfoming an equijoin on the keys (sorted and distinct) of two tables
  */
-embedDBOperator *createKeyJoinOperator(embedDBOperator *input1, embedDBOperator *input2) {
-    embedDBOperator *op = malloc(sizeof(embedDBOperator));
+embedDBOperator* createKeyJoinOperator(embedDBOperator* input1, embedDBOperator* input2) {
+    embedDBOperator* op = malloc(sizeof(embedDBOperator));
     if (op == NULL) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: Failed to malloc while creating join operator\n");
-#endif
+        EDB_PERRF("ERROR: Failed to malloc while creating join operator\n");
         return NULL;
     }
 
-    struct keyJoinInfo *state = malloc(sizeof(struct keyJoinInfo));
+    struct keyJoinInfo* state = malloc(sizeof(struct keyJoinInfo));
     if (state == NULL) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: Failed to malloc while creating join operator\n");
-#endif
+        EDB_PERRF("ERROR: Failed to malloc while creating join operator\n");
         return NULL;
     }
     state->input2 = input2;
@@ -3744,24 +3599,24 @@ embedDBOperator *createKeyJoinOperator(embedDBOperator *input1, embedDBOperator 
     return op;
 }
 
-void countReset(embedDBAggregateFunc *aggFunc, embedDBSchema *inputSchema) {
-    *(uint32_t *)aggFunc->state = 0;
+void countReset(embedDBAggregateFunc* aggFunc, embedDBSchema* inputSchema) {
+    *(uint32_t*)aggFunc->state = 0;
 }
 
-void countAdd(embedDBAggregateFunc *aggFunc, embedDBSchema *inputSchema, const void *recordBuffer) {
-    (*(uint32_t *)aggFunc->state)++;
+void countAdd(embedDBAggregateFunc* aggFunc, embedDBSchema* inputSchema, const void* recordBuffer) {
+    (*(uint32_t*)aggFunc->state)++;
 }
 
-void countCompute(embedDBAggregateFunc *aggFunc, embedDBSchema *outputSchema, void *recordBuffer, const void *lastRecord) {
+void countCompute(embedDBAggregateFunc* aggFunc, embedDBSchema* outputSchema, void* recordBuffer, const void* lastRecord) {
     // Put count in record
-    memcpy((int8_t *)recordBuffer + getColOffsetFromSchema(outputSchema, aggFunc->colNum), aggFunc->state, sizeof(uint32_t));
+    memcpy((int8_t*)recordBuffer + getColOffsetFromSchema(outputSchema, aggFunc->colNum), aggFunc->state, sizeof(uint32_t));
 }
 
 /**
  * @brief	Creates an aggregate function to count the number of records in a group. To be used in combination with an embedDBOperator produced by createAggregateOperator
  */
-embedDBAggregateFunc *createCountAggregate() {
-    embedDBAggregateFunc *aggFunc = malloc(sizeof(embedDBAggregateFunc));
+embedDBAggregateFunc* createCountAggregate() {
+    embedDBAggregateFunc* aggFunc = malloc(sizeof(embedDBAggregateFunc));
     aggFunc->reset = countReset;
     aggFunc->add = countAdd;
     aggFunc->compute = countCompute;
@@ -3770,21 +3625,19 @@ embedDBAggregateFunc *createCountAggregate() {
     return aggFunc;
 }
 
-void sumReset(embedDBAggregateFunc *aggFunc, embedDBSchema *inputSchema) {
-    if (abs(inputSchema->columnSizes[*((uint8_t *)aggFunc->state + sizeof(int64_t))]) > 8) {
-#ifdef PRINT_ERRORS
-        printf("WARNING: Can't use this sum function for columns bigger than 8 bytes\n");
-#endif
+void sumReset(embedDBAggregateFunc* aggFunc, embedDBSchema* inputSchema) {
+    if (abs(inputSchema->columnSizes[*((uint8_t*)aggFunc->state + sizeof(int64_t))]) > 8) {
+        EDB_PERRF("WARNING: Can't use this sum function for columns bigger than 8 bytes\n");
     }
-    *(int64_t *)aggFunc->state = 0;
+    *(int64_t*)aggFunc->state = 0;
 }
 
-void sumAdd(embedDBAggregateFunc *aggFunc, embedDBSchema *inputSchema, const void *recordBuffer) {
-    uint8_t colNum = *((uint8_t *)aggFunc->state + sizeof(int64_t));
+void sumAdd(embedDBAggregateFunc* aggFunc, embedDBSchema* inputSchema, const void* recordBuffer) {
+    uint8_t colNum = *((uint8_t*)aggFunc->state + sizeof(int64_t));
     int8_t colSize = inputSchema->columnSizes[colNum];
     int8_t isSigned = embedDB_IS_COL_SIGNED(colSize);
     colSize = min(abs(colSize), sizeof(int64_t));
-    void *colPos = (int8_t *)recordBuffer + getColOffsetFromSchema(inputSchema, colNum);
+    void* colPos = (int8_t*)recordBuffer + getColOffsetFromSchema(inputSchema, colNum);
     if (isSigned) {
         // Get val to sum from record
         int64_t val = 0;
@@ -3792,72 +3645,70 @@ void sumAdd(embedDBAggregateFunc *aggFunc, embedDBSchema *inputSchema, const voi
         // Extend two's complement sign to fill 64 bit number if val is negative
         int64_t sign = val & (128 << ((colSize - 1) * 8));
         if (sign != 0) {
-            memset(((int8_t *)(&val)) + colSize, 0xff, sizeof(int64_t) - colSize);
+            memset(((int8_t*)(&val)) + colSize, 0xff, sizeof(int64_t) - colSize);
         }
-        (*(int64_t *)aggFunc->state) += val;
+        (*(int64_t*)aggFunc->state) += val;
     } else {
         uint64_t val = 0;
         memcpy(&val, colPos, colSize);
-        (*(uint64_t *)aggFunc->state) += val;
+        (*(uint64_t*)aggFunc->state) += val;
     }
 }
 
-void sumCompute(embedDBAggregateFunc *aggFunc, embedDBSchema *outputSchema, void *recordBuffer, const void *lastRecord) {
+void sumCompute(embedDBAggregateFunc* aggFunc, embedDBSchema* outputSchema, void* recordBuffer, const void* lastRecord) {
     // Put count in record
-    memcpy((int8_t *)recordBuffer + getColOffsetFromSchema(outputSchema, aggFunc->colNum), aggFunc->state, sizeof(int64_t));
+    memcpy((int8_t*)recordBuffer + getColOffsetFromSchema(outputSchema, aggFunc->colNum), aggFunc->state, sizeof(int64_t));
 }
 
 /**
  * @brief	Creates an aggregate function to sum a column over a group. To be used in combination with an embedDBOperator produced by createAggregateOperator. Column must be no bigger than 8 bytes.
  * @param	colNum	The index (zero-indexed) of the column which you want to sum. Column must be <= 8 bytes
  */
-embedDBAggregateFunc *createSumAggregate(uint8_t colNum) {
-    embedDBAggregateFunc *aggFunc = malloc(sizeof(embedDBAggregateFunc));
+embedDBAggregateFunc* createSumAggregate(uint8_t colNum) {
+    embedDBAggregateFunc* aggFunc = malloc(sizeof(embedDBAggregateFunc));
     aggFunc->reset = sumReset;
     aggFunc->add = sumAdd;
     aggFunc->compute = sumCompute;
     aggFunc->state = malloc(sizeof(int8_t) + sizeof(int64_t));
-    *((uint8_t *)aggFunc->state + sizeof(int64_t)) = colNum;
+    *((uint8_t*)aggFunc->state + sizeof(int64_t)) = colNum;
     aggFunc->colSize = -8;
     return aggFunc;
 }
 
 struct minMaxState {
     uint8_t colNum;  // Which column of input to use
-    void *current;   // The value currently regarded as the min/max
+    void* current;   // The value currently regarded as the min/max
 };
 
-void minReset(embedDBAggregateFunc *aggFunc, embedDBSchema *inputSchema) {
-    struct minMaxState *state = aggFunc->state;
+void minReset(embedDBAggregateFunc* aggFunc, embedDBSchema* inputSchema) {
+    struct minMaxState* state = aggFunc->state;
     int8_t colSize = inputSchema->columnSizes[state->colNum];
     if (aggFunc->colSize != colSize) {
-#ifdef PRINT_ERRORS
-        printf("WARNING: Your provided column size for min aggregate function doesn't match the column size in the input schema\n");
-#endif
+        EDB_PERRF("WARNING: Your provided column size for min aggregate function doesn't match the column size in the input schema\n");
     }
     int8_t isSigned = embedDB_IS_COL_SIGNED(colSize);
     colSize = abs(colSize);
     memset(state->current, 0xff, colSize);
     if (isSigned) {
         // If the number is signed, flip MSB else it will read as -1, not MAX_INT
-        memset((int8_t *)state->current + colSize - 1, 0x7f, 1);
+        memset((int8_t*)state->current + colSize - 1, 0x7f, 1);
     }
 }
 
-void minAdd(embedDBAggregateFunc *aggFunc, embedDBSchema *inputSchema, const void *record) {
-    struct minMaxState *state = aggFunc->state;
+void minAdd(embedDBAggregateFunc* aggFunc, embedDBSchema* inputSchema, const void* record) {
+    struct minMaxState* state = aggFunc->state;
     int8_t colSize = inputSchema->columnSizes[state->colNum];
     int8_t isSigned = embedDB_IS_COL_SIGNED(colSize);
     colSize = abs(colSize);
-    void *newValue = (int8_t *)record + getColOffsetFromSchema(inputSchema, state->colNum);
+    void* newValue = (int8_t*)record + getColOffsetFromSchema(inputSchema, state->colNum);
     if (compare(newValue, SELECT_LT, state->current, isSigned, colSize)) {
         memcpy(state->current, newValue, colSize);
     }
 }
 
-void minMaxCompute(embedDBAggregateFunc *aggFunc, embedDBSchema *outputSchema, void *recordBuffer, const void *lastRecord) {
+void minMaxCompute(embedDBAggregateFunc* aggFunc, embedDBSchema* outputSchema, void* recordBuffer, const void* lastRecord) {
     // Put count in record
-    memcpy((int8_t *)recordBuffer + getColOffsetFromSchema(outputSchema, aggFunc->colNum), ((struct minMaxState *)aggFunc->state)->current, abs(outputSchema->columnSizes[aggFunc->colNum]));
+    memcpy((int8_t*)recordBuffer + getColOffsetFromSchema(outputSchema, aggFunc->colNum), ((struct minMaxState*)aggFunc->state)->current, abs(outputSchema->columnSizes[aggFunc->colNum]));
 }
 
 /**
@@ -3865,27 +3716,21 @@ void minMaxCompute(embedDBAggregateFunc *aggFunc, embedDBSchema *outputSchema, v
  * @param	colNum	The zero-indexed column to find the min of
  * @param	colSize	The size, in bytes, of the column to find the min of. Negative number represents a signed number, positive is unsigned.
  */
-embedDBAggregateFunc *createMinAggregate(uint8_t colNum, int8_t colSize) {
-    embedDBAggregateFunc *aggFunc = malloc(sizeof(embedDBAggregateFunc));
+embedDBAggregateFunc* createMinAggregate(uint8_t colNum, int8_t colSize) {
+    embedDBAggregateFunc* aggFunc = malloc(sizeof(embedDBAggregateFunc));
     if (aggFunc == NULL) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: Failed to allocate while creating min aggregate function\n");
-#endif
+        EDB_PERRF("ERROR: Failed to allocate while creating min aggregate function\n");
         return NULL;
     }
-    struct minMaxState *state = malloc(sizeof(struct minMaxState));
+    struct minMaxState* state = malloc(sizeof(struct minMaxState));
     if (state == NULL) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: Failed to allocate while creating min aggregate function\n");
-#endif
+        EDB_PERRF("ERROR: Failed to allocate while creating min aggregate function\n");
         return NULL;
     }
     state->colNum = colNum;
     state->current = malloc(abs(colSize));
     if (state->current == NULL) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: Failed to allocate while creating min aggregate function\n");
-#endif
+        EDB_PERRF("ERROR: Failed to allocate while creating min aggregate function\n");
         return NULL;
     }
     aggFunc->state = state;
@@ -3897,29 +3742,27 @@ embedDBAggregateFunc *createMinAggregate(uint8_t colNum, int8_t colSize) {
     return aggFunc;
 }
 
-void maxReset(embedDBAggregateFunc *aggFunc, embedDBSchema *inputSchema) {
-    struct minMaxState *state = aggFunc->state;
+void maxReset(embedDBAggregateFunc* aggFunc, embedDBSchema* inputSchema) {
+    struct minMaxState* state = aggFunc->state;
     int8_t colSize = inputSchema->columnSizes[state->colNum];
     if (aggFunc->colSize != colSize) {
-#ifdef PRINT_ERRORS
-        printf("WARNING: Your provided column size for max aggregate function doesn't match the column size in the input schema\n");
-#endif
+        EDB_PERRF("WARNING: Your provided column size for max aggregate function doesn't match the column size in the input schema\n");
     }
     int8_t isSigned = embedDB_IS_COL_SIGNED(colSize);
     colSize = abs(colSize);
     memset(state->current, 0, colSize);
     if (isSigned) {
         // If the number is signed, flip MSB else it will read as 0, not MIN_INT
-        memset((int8_t *)state->current + colSize - 1, 0x80, 1);
+        memset((int8_t*)state->current + colSize - 1, 0x80, 1);
     }
 }
 
-void maxAdd(embedDBAggregateFunc *aggFunc, embedDBSchema *inputSchema, const void *record) {
-    struct minMaxState *state = aggFunc->state;
+void maxAdd(embedDBAggregateFunc* aggFunc, embedDBSchema* inputSchema, const void* record) {
+    struct minMaxState* state = aggFunc->state;
     int8_t colSize = inputSchema->columnSizes[state->colNum];
     int8_t isSigned = embedDB_IS_COL_SIGNED(colSize);
     colSize = abs(colSize);
-    void *newValue = (int8_t *)record + getColOffsetFromSchema(inputSchema, state->colNum);
+    void* newValue = (int8_t*)record + getColOffsetFromSchema(inputSchema, state->colNum);
     if (compare(newValue, SELECT_GT, state->current, isSigned, colSize)) {
         memcpy(state->current, newValue, colSize);
     }
@@ -3930,27 +3773,21 @@ void maxAdd(embedDBAggregateFunc *aggFunc, embedDBSchema *inputSchema, const voi
  * @param	colNum	The zero-indexed column to find the max of
  * @param	colSize	The size, in bytes, of the column to find the max of. Negative number represents a signed number, positive is unsigned.
  */
-embedDBAggregateFunc *createMaxAggregate(uint8_t colNum, int8_t colSize) {
-    embedDBAggregateFunc *aggFunc = malloc(sizeof(embedDBAggregateFunc));
+embedDBAggregateFunc* createMaxAggregate(uint8_t colNum, int8_t colSize) {
+    embedDBAggregateFunc* aggFunc = malloc(sizeof(embedDBAggregateFunc));
     if (aggFunc == NULL) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: Failed to allocate while creating max aggregate function\n");
-#endif
+        EDB_PERRF("ERROR: Failed to allocate while creating max aggregate function\n");
         return NULL;
     }
-    struct minMaxState *state = malloc(sizeof(struct minMaxState));
+    struct minMaxState* state = malloc(sizeof(struct minMaxState));
     if (state == NULL) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: Failed to allocate while creating max aggregate function\n");
-#endif
+        EDB_PERRF("ERROR: Failed to allocate while creating max aggregate function\n");
         return NULL;
     }
     state->colNum = colNum;
     state->current = malloc(abs(colSize));
     if (state->current == NULL) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: Failed to allocate while creating max aggregate function\n");
-#endif
+        EDB_PERRF("ERROR: Failed to allocate while creating max aggregate function\n");
         return NULL;
     }
     aggFunc->state = state;
@@ -3969,25 +3806,23 @@ struct avgState {
     int64_t sum;      // Sum of records seen in group so far
 };
 
-void avgReset(struct embedDBAggregateFunc *aggFunc, embedDBSchema *inputSchema) {
-    struct avgState *state = aggFunc->state;
+void avgReset(struct embedDBAggregateFunc* aggFunc, embedDBSchema* inputSchema) {
+    struct avgState* state = aggFunc->state;
     if (abs(inputSchema->columnSizes[state->colNum]) > 8) {
-#ifdef PRINT_ERRORS
-        printf("WARNING: Can't use this sum function for columns bigger than 8 bytes\n");
-#endif
+        EDB_PERRF("WARNING: Can't use this sum function for columns bigger than 8 bytes\n");
     }
     state->count = 0;
     state->sum = 0;
     state->isSigned = embedDB_IS_COL_SIGNED(inputSchema->columnSizes[state->colNum]);
 }
 
-void avgAdd(struct embedDBAggregateFunc *aggFunc, embedDBSchema *inputSchema, const void *record) {
-    struct avgState *state = aggFunc->state;
+void avgAdd(struct embedDBAggregateFunc* aggFunc, embedDBSchema* inputSchema, const void* record) {
+    struct avgState* state = aggFunc->state;
     uint8_t colNum = state->colNum;
     int8_t colSize = inputSchema->columnSizes[colNum];
     int8_t isSigned = embedDB_IS_COL_SIGNED(colSize);
     colSize = min(abs(colSize), sizeof(int64_t));
-    void *colPos = (int8_t *)record + getColOffsetFromSchema(inputSchema, colNum);
+    void* colPos = (int8_t*)record + getColOffsetFromSchema(inputSchema, colNum);
     if (isSigned) {
         // Get val to sum from record
         int64_t val = 0;
@@ -3995,7 +3830,7 @@ void avgAdd(struct embedDBAggregateFunc *aggFunc, embedDBSchema *inputSchema, co
         // Extend two's complement sign to fill 64 bit number if val is negative
         int64_t sign = val & (128 << ((colSize - 1) * 8));
         if (sign != 0) {
-            memset(((int8_t *)(&val)) + colSize, 0xff, sizeof(int64_t) - colSize);
+            memset(((int8_t*)(&val)) + colSize, 0xff, sizeof(int64_t) - colSize);
         }
         state->sum += val;
     } else {
@@ -4007,8 +3842,8 @@ void avgAdd(struct embedDBAggregateFunc *aggFunc, embedDBSchema *inputSchema, co
     state->count++;
 }
 
-void avgCompute(struct embedDBAggregateFunc *aggFunc, embedDBSchema *outputSchema, void *recordBuffer, const void *lastRecord) {
-    struct avgState *state = aggFunc->state;
+void avgCompute(struct embedDBAggregateFunc* aggFunc, embedDBSchema* outputSchema, void* recordBuffer, const void* lastRecord) {
+    struct avgState* state = aggFunc->state;
     if (aggFunc->colSize == 8) {
         double avg = state->sum / (double)state->count;
         if (state->isSigned) {
@@ -4016,7 +3851,7 @@ void avgCompute(struct embedDBAggregateFunc *aggFunc, embedDBSchema *outputSchem
         } else {
             avg = (uint64_t)state->sum / (double)state->count;
         }
-        memcpy((int8_t *)recordBuffer + getColOffsetFromSchema(outputSchema, aggFunc->colNum), &avg, sizeof(double));
+        memcpy((int8_t*)recordBuffer + getColOffsetFromSchema(outputSchema, aggFunc->colNum), &avg, sizeof(double));
     } else {
         float avg;
         if (state->isSigned) {
@@ -4024,7 +3859,7 @@ void avgCompute(struct embedDBAggregateFunc *aggFunc, embedDBSchema *outputSchem
         } else {
             avg = (uint64_t)state->sum / (float)state->count;
         }
-        memcpy((int8_t *)recordBuffer + getColOffsetFromSchema(outputSchema, aggFunc->colNum), &avg, sizeof(float));
+        memcpy((int8_t*)recordBuffer + getColOffsetFromSchema(outputSchema, aggFunc->colNum), &avg, sizeof(float));
     }
 }
 
@@ -4033,32 +3868,24 @@ void avgCompute(struct embedDBAggregateFunc *aggFunc, embedDBSchema *outputSchem
  * @param	colNum			Zero-indexed column to take average of
  * @param	outputFloatSize	Size of float to output. Must be either 4 (float) or 8 (double)
  */
-embedDBAggregateFunc *createAvgAggregate(uint8_t colNum, int8_t outputFloatSize) {
-    embedDBAggregateFunc *aggFunc = malloc(sizeof(embedDBAggregateFunc));
+embedDBAggregateFunc* createAvgAggregate(uint8_t colNum, int8_t outputFloatSize) {
+    embedDBAggregateFunc* aggFunc = malloc(sizeof(embedDBAggregateFunc));
     if (aggFunc == NULL) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: Failed to allocate while creating avg aggregate function\n");
-#endif
+        EDB_PERRF("ERROR: Failed to allocate while creating avg aggregate function\n");
         return NULL;
     }
-    struct avgState *state = malloc(sizeof(struct avgState));
+    struct avgState* state = malloc(sizeof(struct avgState));
     if (state == NULL) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: Failed to allocate while creating avg aggregate function\n");
-#endif
+        EDB_PERRF("ERROR: Failed to allocate while creating avg aggregate function\n");
         return NULL;
     }
     state->colNum = colNum;
     aggFunc->state = state;
     if (outputFloatSize > 8 || (outputFloatSize < 8 && outputFloatSize > 4)) {
-#ifdef PRINT_ERRORS
-        printf("WARNING: The size of the output float for AVG must be exactly 4 or 8. Defaulting to 8.");
-#endif
+        EDB_PERRF("WARNING: The size of the output float for AVG must be exactly 4 or 8. Defaulting to 8.");
         aggFunc->colSize = 8;
     } else if (outputFloatSize < 4) {
-#ifdef PRINT_ERRORS
-        printf("WARNING: The size of the output float for AVG must be exactly 4 or 8. Defaulting to 4.");
-#endif
+        EDB_PERRF("WARNING: The size of the output float for AVG must be exactly 4 or 8. Defaulting to 4.");
         aggFunc->colSize = 4;
     } else {
         aggFunc->colSize = outputFloatSize;
@@ -4073,7 +3900,7 @@ embedDBAggregateFunc *createAvgAggregate(uint8_t colNum, int8_t outputFloatSize)
 /**
  * @brief	Completely free a chain of functions recursively after it's already been closed.
  */
-void embedDBFreeOperatorRecursive(embedDBOperator **op) {
+void embedDBFreeOperatorRecursive(embedDBOperator** op) {
     if ((*op)->input != NULL) {
         embedDBFreeOperatorRecursive(&(*op)->input);
     }
@@ -4129,7 +3956,7 @@ void embedDBFreeOperatorRecursive(embedDBOperator **op) {
  *  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  *  POSSIBILITY OF SUCH DAMAGE.
  */
-/******************************************************************************/
+/******************************************************************************/  
 
 /* A bitmap with 8 buckets (bits). Range 0 to 100. */
 void updateBitmapInt8(void *data, void *bm) {
@@ -4343,3 +4170,4 @@ int8_t int64Comparator(void *a, void *b) {
         return 1;
     return 0;
 }
+

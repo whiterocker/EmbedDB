@@ -143,20 +143,26 @@ int8_t embedDBInit(embedDBState *state, size_t indexMaxError) {
     }
 
     /* check the number of allocated pages is a multiple of the erase size */
-    if (state->numDataPages % state->eraseSizeInPages != 0) {
-        EDB_PERRF("ERROR: The number of allocated data pages must be divisible by the erase size in pages.\n");
+    if (state->numDataPages % state->eraseSizeInPages) {
+        EDB_PERRF("ERROR: The number of allocated data pages must be "
+		  "divisible by the erase size in pages.\n");
         return -1;
     }
 
-    if (state->numDataPages < (EMBEDDB_USING_RECORD_LEVEL_CONSISTENCY(state->parameters) ? 4 : 2) * state->eraseSizeInPages) {
-        EDB_PERRF("ERROR: The minimum number of data pages is twice the eraseSizeInPages or 4 times the eraseSizeInPages if using record-level consistency.\n");
-        return -1;
+    if (state->numDataPages <
+	(EMBEDDB_USING_RECORD_LEVEL_CONSISTENCY(state->parameters) ? 4 : 2) *
+	state->eraseSizeInPages) {
+      EDB_PERRF("ERROR: The minimum number of data pages is twice "
+		"the eraseSizeInPages or 4 times the eraseSizeInPages "
+		"if using record-level consistency.\n");
+      return -1;
     }
 
     state->recordSize = state->keySize + state->dataSize;
     if (EMBEDDB_USING_VDATA(state->parameters)) {
         if (state->numVarPages % state->eraseSizeInPages != 0) {
-            EDB_PERRF("ERROR: The number of allocated variable data pages must be divisible by the erase size in pages.\n");
+            EDB_PERRF("ERROR: The number of allocated variable data pages must "
+		      "be divisible by the erase size in pages.\n");
             return -1;
         }
         state->recordSize += 4;
@@ -170,7 +176,8 @@ int8_t embedDBInit(embedDBState *state, size_t indexMaxError) {
     state->headerSize = 6;
     if (EMBEDDB_USING_INDEX(state->parameters)) {
         if (state->numIndexPages % state->eraseSizeInPages != 0) {
-            EDB_PERRF("ERROR: The number of allocated index pages must be divisible by the erase size in pages.\n");
+            EDB_PERRF("ERROR: The number of allocated index pages must be "
+		      "divisible by the erase size in pages.\n");
             return -1;
         }
         state->headerSize += state->bitmapSize;
@@ -201,13 +208,18 @@ int8_t embedDBInit(embedDBState *state, size_t indexMaxError) {
     }
 
     /* Initalize the spline structure if being used */
-    if (!EMBEDDB_USING_BINARY_SEARCH(state->parameters)) {
+    if (EMBEDDB_USING_SPLINE(state->parameters)) {
+      if (EDB_WITH_HEAP) {
         if (state->numSplinePoints < 4) {
-            EDB_PERRF("ERROR: Unable to setup spline with less than 4 points.");
-            return -1;
+	  EDB_PERRF("ERROR: Unable to setup spline with less than 4 points.");
+	  return -1;
         }
         state->spl = malloc(sizeof(spline));
         splineInit(state->spl, state->numSplinePoints, indexMaxError, state->keySize);
+      }
+      else {
+	EDB_PERRF("ERROR: EDB_NO_HEAP: dynamically-allocated splines not available.");
+      }
     }
 
     /* Allocate file for data*/
@@ -386,7 +398,7 @@ int8_t embedDBInitDataFromFile(embedDBState *state) {
     /* Put largest key back into the buffer */
     readPage(state, (state->nextDataPageId - 1) % state->numDataPages);
 
-    if (!EMBEDDB_USING_BINARY_SEARCH(state->parameters)) {
+    if (EMBEDDB_USING_SPLINE(state->parameters)) {
         embedDBInitSplineFromFile(state);
     }
 
@@ -551,7 +563,7 @@ int8_t embedDBInitDataFromFileWithRecordLevelConsistency(embedDBState *state) {
 
     /* Put largest key back into the buffer */
     readPage(state, (state->nextDataPageId - 1) % state->numDataPages);
-    if (!EMBEDDB_USING_BINARY_SEARCH(state->parameters)) {
+    if (EMBEDDB_USING_SPLINE(state->parameters)) {
         embedDBInitSplineFromFile(state);
     }
 
@@ -959,7 +971,7 @@ int32_t getMaxError(embedDBState *state, void *buffer) {
  * @param	state	embedDB algorithm state structure
  */
 void indexPage(embedDBState *state, uint32_t pageNumber) {
-    if (!EMBEDDB_USING_BINARY_SEARCH(state->parameters)) {
+    if (EMBEDDB_USING_SPLINE(state->parameters)) {
         splineAdd(state->spl, embedDBGetMinKey(state, state->buffer), pageNumber);
     }
 }
@@ -1547,34 +1559,42 @@ int8_t embedDBGetVar(embedDBState *state, void *key, void *data, embedDBVarDataS
  * @param	it		embedDB iterator state structure
  */
 void embedDBInitIterator(embedDBState *state, embedDBIterator *it) {
-    /* Build query bitmap (if used) */
-    it->queryBitmap = NULL;
-    if (EMBEDDB_USING_BMAP(state->parameters)) {
-        /* Verify that bitmap index is useful (must have set either min or max data value) */
-        if (it->minData != NULL || it->maxData != NULL) {
-            it->queryBitmap = calloc(1, state->bitmapSize);
-            state->buildBitmapFromRange(it->minData, it->maxData, it->queryBitmap);
-        }
+  /* Build query bitmap (if used) */
+  it->queryBitmap = NULL;
+  if (EMBEDDB_USING_BMAP(state->parameters)) {
+    /* Verify that bitmap index is useful (must have set either min or max data value) */
+    if ((it->minData || it->maxData) && EDB_WITH_HEAP) {
+      it->queryBitmap = calloc(1, state->bitmapSize);
+      state->buildBitmapFromRange(it->minData, it->maxData, it->queryBitmap);
     }
-
-    if (!EMBEDDB_USING_BMAP(state->parameters)) {
-        EDB_PERRF("WARN: Iterator not using index. If this is not intended, ensure that the embedDBState is using a bitmap and was initialized with an index file\n");
-    } else if (!EMBEDDB_USING_INDEX(state->parameters)) {
-        EDB_PERRF("WARN: Iterator not using index to full extent. If this is not intended, ensure that the embedDBState was initialized with an index file\n");
-    }
-
-    /* Determine which data page should be the first examined if there is a min key and that we have spline points */
-    if (state->spl->count != 0 && it->minKey != NULL && !(EMBEDDB_USING_BINARY_SEARCH(state->parameters))) {
-        /* Spline search */
-        uint32_t location, lowbound, highbound = 0;
-        splineFind(state->spl, it->minKey, state->compareKey, &location, &lowbound, &highbound);
-
-        // Use the low bound as the start for our search
-        it->nextDataPage = max(lowbound, state->minDataPageId);
-    } else {
-        it->nextDataPage = state->minDataPageId;
-    }
-    it->nextDataRec = 0;
+  }
+  
+  if (!EMBEDDB_USING_BMAP(state->parameters)) {
+    EDB_PERRF("WARN: Iterator not using index. If this is not intended, "
+	      "ensure that the embedDBState is using a bitmap and was "
+	      "initialized with an index file.\n");
+  }
+  else if (!EMBEDDB_USING_INDEX(state->parameters)) {
+    EDB_PERRF("WARN: Iterator not using index to full extent. If this is not intended, "
+	      "ensure that the embedDBState was initialized with an index file.\n");
+  }
+  
+  /* Determine which data page should be the first examined if there
+     is a min key and that we have spline points */
+  if ((state->spl->count != 0) &&
+      it->minKey &&
+      EMBEDDB_USING_SPLINE(state->parameters)) {
+    /* Spline search */
+    uint32_t location, lowbound, highbound = 0;
+    splineFind(state->spl, it->minKey, state->compareKey, &location, &lowbound, &highbound);
+    
+    // Use the low bound as the start for our search
+    it->nextDataPage = max(lowbound, state->minDataPageId);
+  }
+  else {
+    it->nextDataPage = state->minDataPageId;
+  }
+  it->nextDataRec = 0;
 }
 
 /**
@@ -1582,9 +1602,9 @@ void embedDBInitIterator(embedDBState *state, embedDBIterator *it) {
  * @param	it		embedDB iterator structure
  */
 void embedDBCloseIterator(embedDBIterator *it) {
-    if (it->queryBitmap != NULL) {
-        free(it->queryBitmap);
-    }
+  if (it && it->queryBitmap && EDB_WITH_HEAP) {
+    free(it->queryBitmap);
+  }
 }
 
 /**
@@ -1845,10 +1865,13 @@ int8_t embedDBSetupVarDataStream(embedDBState *state, void *key, embedDBVarDataS
     }
 
     // Create varDataStream
-    embedDBVarDataStream *varDataStream = malloc(sizeof(embedDBVarDataStream));
-    if (varDataStream == NULL) {
-        EDB_PERRF("ERROR: Failed to alloc memory for embedDBVarDataStream\n");
-        return 3;
+    embedDBVarDataStream *varDataStream = NULL;
+    if (EDB_WITH_HEAP) {
+      varDataStream = malloc(sizeof(embedDBVarDataStream));
+    }
+    if (!varDataStream) {
+      EDB_PERRF("ERROR: Failed to alloc memory for embedDBVarDataStream\n");
+      return 3;
     }
 
     varDataStream->dataStart = varDataAddr;
@@ -1919,8 +1942,8 @@ void embedDBPrintStats(embedDBState *state) {
     EDB_PRINTF("Num index writes: %" PRIu32 "\n", state->numIdxWrites);
     EDB_PRINTF("Max Error: %" PRId32 "\n", state->maxError);
 
-    if (!EMBEDDB_USING_BINARY_SEARCH(state->parameters)) {
-        splinePrint(state->spl);
+    if (EMBEDDB_USING_SPLINE(state->parameters)) {
+      splinePrint(state->spl);
     }
 }
 
@@ -2277,9 +2300,11 @@ void embedDBClose(embedDBState *state) {
     if (state->varFile != NULL) {
         state->fileInterface->close(state->varFile);
     }
-    if (!EMBEDDB_USING_BINARY_SEARCH(state->parameters)) {
+    if (EMBEDDB_USING_SPLINE(state->parameters)) {
         splineClose(state->spl);
-        free(state->spl);
+	if (EDB_WITH_HEAP) {
+	  free(state->spl);
+	}
         state->spl = NULL;
     }
 }

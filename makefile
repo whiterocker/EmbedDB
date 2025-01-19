@@ -1,3 +1,6 @@
+# provide optional local build context, e.g. EDB_LOCAL_CFLAGS=-Os -DEDB_NO_HEAP=1
+-include local.mk 
+
 ifeq ($(OS),Windows_NT)
   ifeq ($(shell uname -s),) # not in a bash-like shell
 	CLEANUP = rmdir /S /Q
@@ -6,7 +9,7 @@ ifeq ($(OS),Windows_NT)
 	CLEANUP = rm -r -f
 	MKDIR = mkdir -p
   endif
-  	MATH=
+	MATH=
 	PYTHON=python
 	TARGET_EXTENSION=exe
 else
@@ -44,11 +47,14 @@ QUERY_OBJECTS = $(PATHO)schema.o $(PATHO)advancedQueries.o
 EMBEDDB_DESKTOP = $(PATHO)desktopMain.o
 DISTRIBUTION_OBJECTS = $(PATHO)distribution.o
 
-TEST_FLAGS = -I. -I$(PATHU) -I $(PATHS) -I$(PATH_UTILITY) -I$(PATH_FILE_INTERFACE) -D TEST
-EXAMPLE_FLAGS = -I. -I$(PATHS) -I$(PATH_UTILITY) -I$(PATH_FILE_INTERFACE) -I$(PATH_DISTRIBUTION) -DPRINT_ERRORS
-TEST_DIST_FLAGS = -I. -I$(PATHU) -I$(PATH_FILE_INTERFACE) -I$(PATH_DISTRIBUTION) -DDIST -D TEST
+COMMON_CFLAGS    = -I. -I$(PATH_FILE_INTERFACE) $(EDB_LOCAL_CFLAGS)
+TEST_CFLAGS      = -I$(PATHU) -I$(PATHS) -I$(PATH_UTILITY) -DTEST
+EXAMPLE_CFLAGS   = -I$(PATHS) -I$(PATH_UTILITY) -I$(PATH_DISTRIBUTION) -DPRINT_ERRORS
+TEST_DIST_CFLAGS = -I$(PATHU) -I$(PATH_DISTRIBUTION) -DDIST -DTEST
 
-override CFLAGS += $(if $(filter test-dist,$(MAKECMDGOALS)), $(TEST_DIST_FLAGS), $(if $(filter test,$(MAKECMDGOALS)),$(TEST_FLAGS),$(EXAMPLE_FLAGS)) )
+override CFLAGS += $(COMMON_CFLAGS) \
+$(if $(filter test-dist,$(MAKECMDGOALS)),$(TEST_DIST_CFLAGS),\
+	$(if $(filter test,$(MAKECMDGOALS)),$(TEST_CFLAGS),$(EXAMPLE_CFLAGS)) )
 
 SRCT = $(wildcard $(PATHT)*/*.cpp)
 
