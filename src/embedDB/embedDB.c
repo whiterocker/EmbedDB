@@ -194,7 +194,9 @@ int8_t embedDBInit(embedDBState *state, size_t indexMaxError) {
     initBufferPage(state, 0);
 
     if (state->numDataPages < (EMBEDDB_USING_INDEX(state->parameters) * 2 + 2) * state->eraseSizeInPages) {
-        EDB_PERRF("ERROR: Number of pages allocated must be at least twice erase block size for embedDB and four times when using indexing. Memory pages: %d\n", state->numDataPages);
+        EDB_PERRF("ERROR: Number of pages allocated must be at least twice "
+		  "erase block size for embedDB and four times when using indexing. "
+		  "Memory pages: %" PRIu32 "\n", state->numDataPages);
         return -1;
     }
 
@@ -821,10 +823,20 @@ int8_t embedDBInitVarDataFromFile(embedDBState *state) {
  */
 void embedDBPrintInit(embedDBState *state) {
     EDB_PRINTF("EmbedDB State Initialization Stats:\n");
-    EDB_PRINTF("Buffer size: %d  Page size: %d\n", state->bufferSizeInBlocks, state->pageSize);
-    EDB_PRINTF("Key size: %d Data size: %d %sRecord size: %d\n", state->keySize, state->dataSize, EMBEDDB_USING_VDATA(state->parameters) ? "Variable data pointer size: 4 " : "", state->recordSize);
-    EDB_PRINTF("Use index: %d  Max/min: %d Sum: %d Bmap: %d\n", EMBEDDB_USING_INDEX(state->parameters), EMBEDDB_USING_MAX_MIN(state->parameters), EMBEDDB_USING_SUM(state->parameters), EMBEDDB_USING_BMAP(state->parameters));
-    EDB_PRINTF("Header size: %d  Records per page: %d\n", state->headerSize, state->maxRecordsPerPage);
+    EDB_PRINTF("Buffer size: %" PRId8 "  Page size: %" PRId16 "\n",
+	       state->bufferSizeInBlocks, state->pageSize);
+    EDB_PRINTF("Key size: %" PRId8 " Data size: %" PRId8 " %sRecord size: %" PRId8 "\n",
+	       state->keySize, state->dataSize,
+	       EMBEDDB_USING_VDATA(state->parameters) ? "Variable data pointer size: 4 " : "",
+	       state->recordSize);
+    EDB_PRINTF("Use index: %d  Max/min: %d Sum: %d Bmap: %d\n",
+	       EMBEDDB_USING_INDEX(state->parameters),
+	       EMBEDDB_USING_MAX_MIN(state->parameters),
+	       EMBEDDB_USING_SUM(state->parameters),
+	       EMBEDDB_USING_BMAP(state->parameters));
+    EDB_PRINTF("Header size: %" PRId8 "  Records per page: %" PRId16 "\n",
+	       state->headerSize,
+	       state->maxRecordsPerPage);
 }
 
 /**
@@ -1687,7 +1699,9 @@ int8_t embedDBNext(embedDBState *state, embedDBIterator *it, void *key, void *da
                 // If the index page that contains this data page exists, else we must read the data page regardless cause we don't have the index saved for it
 
                 if (readIndexPage(state, indexPage % state->numIndexPages) != 0) {
-                    EDB_PERRF("ERROR: Failed to read index page %i (%i)\n", indexPage, indexPage % state->numIndexPages);
+                    EDB_PERRF("ERROR: Failed to read index page %" PRIu32 " (%" PRIu32 ")\n",
+			      indexPage,
+			      indexPage % state->numIndexPages);
                     return 0;
                 }
 
@@ -1704,7 +1718,9 @@ int8_t embedDBNext(embedDBState *state, embedDBIterator *it, void *key, void *da
         }
 
         if (searchWriteBuf == 0 && readPage(state, it->nextDataPage % state->numDataPages) != 0) {
-            EDB_PERRF("ERROR: Failed to read data page %i (%i)\n", it->nextDataPage, it->nextDataPage % state->numDataPages);
+  	    EDB_PERRF("ERROR: Failed to read data page %" PRIu32 " (%" PRIu32 ")\n",
+		      it->nextDataPage,
+		      it->nextDataPage % state->numDataPages);
             return 0;
         }
 
@@ -1861,7 +1877,7 @@ uint32_t embedDBVarDataStreamRead(embedDBState *state, embedDBVarDataStream *str
     // Read in var page containing the data to read
     uint32_t pageNum = (stream->fileOffset / state->pageSize) % state->numVarPages;
     if (readVariablePage(state, pageNum) != 0) {
-        EDB_PERRF("ERROR: Couldn't read variable data page %d\n", pageNum);
+        EDB_PERRF("ERROR: Couldn't read variable data page %" PRIu32 "\n", pageNum);
         return 0;
     }
 
@@ -1880,7 +1896,7 @@ uint32_t embedDBVarDataStreamRead(embedDBState *state, embedDBVarDataStream *str
         if (amtRead < length && stream->bytesRead < stream->totalBytes) {
             pageNum = (pageNum + 1) % state->numVarPages;
             if (readVariablePage(state, pageNum) != 0) {
-                EDB_PERRF("ERROR: Couldn't read variable data page %d\n", pageNum);
+                EDB_PERRF("ERROR: Couldn't read variable data page %" PRIu32 "\n", pageNum);
                 return 0;
             }
             // Skip past the header
@@ -1896,12 +1912,12 @@ uint32_t embedDBVarDataStreamRead(embedDBState *state, embedDBVarDataStream *str
  * @param	state	embedDB state structure
  */
 void embedDBPrintStats(embedDBState *state) {
-    EDB_PRINTF("Num reads: %d\n", state->numReads);
-    EDB_PRINTF("Buffer hits: %d\n", state->bufferHits);
-    EDB_PRINTF("Num writes: %d\n", state->numWrites);
-    EDB_PRINTF("Num index reads: %d\n", state->numIdxReads);
-    EDB_PRINTF("Num index writes: %d\n", state->numIdxWrites);
-    EDB_PRINTF("Max Error: %d\n", state->maxError);
+    EDB_PRINTF("Num reads: %" PRIu32 "\n", state->numReads);
+    EDB_PRINTF("Buffer hits: %" PRIu32 "\n", state->bufferHits);
+    EDB_PRINTF("Num writes: %" PRIu32 "\n", state->numWrites);
+    EDB_PRINTF("Num index reads: %" PRIu32 "\n", state->numIdxReads);
+    EDB_PRINTF("Num index writes: %" PRIu32 "\n", state->numIdxWrites);
+    EDB_PRINTF("Max Error: %" PRId32 "\n", state->maxError);
 
     if (!EMBEDDB_USING_BINARY_SEARCH(state->parameters)) {
         splinePrint(state->spl);
@@ -1929,7 +1945,8 @@ id_t writePage(embedDBState *state, void *buffer) {
         /* Erase pages to make space for new data */
         int8_t eraseResult = state->fileInterface->erase(physicalPageNum, physicalPageNum + state->eraseSizeInPages, state->pageSize, state->dataFile);
         if (eraseResult != 1) {
-            EDB_PERRF("Failed to erase data page: %i (%i)\n", pageNum, physicalPageNum);
+	    EDB_PERRF("Failed to erase data page: %" PRIu32 " (%" PRIu32 ")\n",
+		      pageNum, physicalPageNum);
             return -1;
         }
 
@@ -1946,7 +1963,8 @@ id_t writePage(embedDBState *state, void *buffer) {
     /* Seek to page location in file */
     int32_t val = state->fileInterface->write(buffer, physicalPageNum, state->pageSize, state->dataFile);
     if (val == 0) {
-        EDB_PERRF("Failed to write data page: %i (%i)\n", pageNum, physicalPageNum);
+        EDB_PERRF("Failed to write data page: %" PRIu32 " (%" PRIu32 ")\n",
+		  pageNum, physicalPageNum);
         return -1;
     }
 
@@ -1988,7 +2006,8 @@ int8_t writeTemporaryPage(embedDBState *state, void *buffer) {
 
         int8_t eraseSuccess = state->fileInterface->erase(eraseStartingPage, eraseEndingPage, state->pageSize, state->dataFile);
         if (!eraseSuccess) {
-            EDB_PERRF("Failed to erase block starting at physical page %i in the data file.", state->nextRLCPhysicalPageLocation);
+	    EDB_PERRF("Failed to erase block starting at physical page %" PRIu32 " in the data file.",
+		      state->nextRLCPhysicalPageLocation);
             return -2;
         }
     }
@@ -1996,7 +2015,10 @@ int8_t writeTemporaryPage(embedDBState *state, void *buffer) {
     /* Write temporary page to storage */
     int8_t writeSuccess = state->fileInterface->write(buffer, state->nextRLCPhysicalPageLocation++, state->pageSize, state->dataFile);
     if (!writeSuccess) {
-        EDB_PERRF("Failed to write temporary page for record-level-consistency: Logical Page Number %i - Physical Page (%i)\n", state->nextDataPageId, state->nextRLCPhysicalPageLocation - 1);
+        EDB_PERRF("Failed to write temporary page for record-level-consistency:"
+		  " Logical Page Number %" PRIu32 " - Physical Page (%" PRIu32 ")\n",
+		  state->nextDataPageId,
+		  state->nextRLCPhysicalPageLocation - 1);
         return -1;
     }
 
@@ -2051,7 +2073,8 @@ id_t writeIndexPage(embedDBState *state, void *buffer) {
         // Erase index pages to make room for new page
         int8_t eraseResult = state->fileInterface->erase(physicalPageNumber, physicalPageNumber + state->eraseSizeInPages, state->pageSize, state->indexFile);
         if (eraseResult != 1) {
-            EDB_PERRF("Failed to erase data page: %i (%i)\n", pageNum, physicalPageNumber);
+	    EDB_PERRF("Failed to erase data page: %" PRIu32 " (%" PRIu32 ")\n",
+		      pageNum, physicalPageNumber);
             return -1;
         }
         state->numAvailIndexPages += state->eraseSizeInPages;
@@ -2061,7 +2084,8 @@ id_t writeIndexPage(embedDBState *state, void *buffer) {
     /* Seek to page location in file */
     int32_t val = state->fileInterface->write(buffer, physicalPageNumber, state->pageSize, state->indexFile);
     if (val == 0) {
-        EDB_PERRF("Failed to write index page: %i (%i)\n", pageNum, physicalPageNumber);
+        EDB_PERRF("Failed to write index page: %" PRIu32 " (%" PRIu32 ")\n",
+		  pageNum, physicalPageNumber);
         return -1;
     }
 
@@ -2089,7 +2113,8 @@ id_t writeVariablePage(embedDBState *state, void *buffer) {
     if (state->numAvailVarPages <= 0) {
         int8_t eraseResult = state->fileInterface->erase(physicalPageId, physicalPageId + state->eraseSizeInPages, state->pageSize, state->varFile);
         if (eraseResult != 1) {
-            EDB_PERRF("Failed to erase data page: %i (%i)\n", state->nextVarPageId, physicalPageId);
+  	    EDB_PERRF("Failed to erase data page: %" PRIu32 " (%" PRIu32 ")\n",
+		      state->nextVarPageId, physicalPageId);
             return -1;
         }
         state->numAvailVarPages += state->eraseSizeInPages;
@@ -2112,7 +2137,7 @@ id_t writeVariablePage(embedDBState *state, void *buffer) {
     // Write to file
     uint32_t val = state->fileInterface->write(buffer, physicalPageId, state->pageSize, state->varFile);
     if (val == 0) {
-        EDB_PERRF("Failed to write vardata page: %i\n", state->nextVarPageId);
+        EDB_PERRF("Failed to write vardata page: %" PRIu32 "\n", state->nextVarPageId);
         return -1;
     }
 

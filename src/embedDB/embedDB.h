@@ -40,6 +40,7 @@
 extern "C" {
 #endif
 
+#include <inttypes.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdlib.h>

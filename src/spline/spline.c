@@ -256,15 +256,15 @@ void splinePrint(spline *spl) {
         EDB_PRINTF("No spline to print.\n");
         return;
     }
-    EDB_PRINTF("Spline max error (%lu):\n", spl->maxError);
-    EDB_PRINTF("Spline points (%lu):\n", spl->count);
+    EDB_PRINTF("Spline max error (%" PRIu32 "):\n", spl->maxError);
+    EDB_PRINTF("Spline points (%zu):\n", spl->count);
     uint64_t keyVal = 0;
     uint32_t page = 0;
-    for (id_t i = 0; i < spl->count; i++) {
+    for (uint32_t i = 0; i < spl->count; i++) {
         void *point = splinePointLocation(spl, i);
         memcpy(&keyVal, point, spl->keySize);
         memcpy(&page, (int8_t *)point + spl->keySize, sizeof(uint32_t));
-        EDB_PRINTF("[%lu]: (%lu, %li)\n", i, keyVal, page);
+        EDB_PRINTF("[%" PRIu32 "]: (%" PRIu64 ", %" PRIu32 ")\n", i, keyVal, page);
     }
     EDB_PRINTF("\n");
 }
