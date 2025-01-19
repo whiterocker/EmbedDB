@@ -40,7 +40,6 @@
 extern "C" {
 #endif
 
-#include "../embedDB/embedDB.h"
 #include "schema.h"
 
 #define SELECT_GT 0

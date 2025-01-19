@@ -36,7 +36,6 @@
 #include "schema.h"
 
 #include <math.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -60,9 +59,7 @@ embedDBSchema* embedDBCreateSchema(uint8_t numCols, int8_t* colSizes, int8_t* co
         uint8_t colSize = colSizes[i];
         totalSize += colSize;
         if (colSize <= 0) {
-#ifdef PRINT_ERRORS
-            printf("ERROR: Column size must be greater than zero\n");
-#endif
+            EDB_PERRF("ERROR: Column size must be greater than zero\n");
             return NULL;
         }
         if (sign == embedDB_COLUMN_SIGNED) {
@@ -70,9 +67,7 @@ embedDBSchema* embedDBCreateSchema(uint8_t numCols, int8_t* colSizes, int8_t* co
         } else if (sign == embedDB_COLUMN_UNSIGNED) {
             schema->columnSizes[i] = colSizes[i];
         } else {
-#ifdef PRINT_ERRORS
-            printf("ERROR: Must only use embedDB_COLUMN_SIGNED or embedDB_COLUMN_UNSIGNED to describe column signedness\n");
-#endif
+            EDB_PERRF("ERROR: Must only use embedDB_COLUMN_SIGNED or embedDB_COLUMN_UNSIGNED to describe column signedness\n");
             return NULL;
         }
     }
@@ -107,17 +102,13 @@ void* createBufferFromSchema(embedDBSchema* schema) {
 embedDBSchema* copySchema(const embedDBSchema* schema) {
     embedDBSchema* copy = malloc(sizeof(embedDBSchema));
     if (copy == NULL) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: malloc failed while copying schema\n");
-#endif
+        EDB_PERRF("ERROR: malloc failed while copying schema\n");
         return NULL;
     }
     copy->numCols = schema->numCols;
     copy->columnSizes = malloc(schema->numCols * sizeof(int8_t));
     if (copy->columnSizes == NULL) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: malloc failed while copying schema\n");
-#endif
+        EDB_PERRF("ERROR: malloc failed while copying schema\n");
         return NULL;
     }
     memcpy(copy->columnSizes, schema->columnSizes, schema->numCols * sizeof(int8_t));
@@ -149,10 +140,10 @@ uint16_t getRecordSizeFromSchema(embedDBSchema* schema) {
 void printSchema(embedDBSchema* schema) {
     for (uint8_t i = 0; i < schema->numCols; i++) {
         if (i) {
-            printf(", ");
+            EDB_PRINTF(", ");
         }
         int8_t col = schema->columnSizes[i];
-        printf("%sint%d", embedDB_IS_COL_SIGNED(col) ? "" : "u", abs(col));
+        EDB_PRINTF("%sint%d", embedDB_IS_COL_SIGNED(col) ? "" : "u", abs(col));
     }
-    printf("\n");
+    EDB_PRINTF("\n");
 }

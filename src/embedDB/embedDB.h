@@ -42,8 +42,21 @@ extern "C" {
 
 #include <math.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <stdlib.h>
+
+#if !defined(EDB_PRINTF)
+#include <stdio.h>
+#define EDB_PRINTF(fmt, ...) printf(fmt __VA_OPT__(,) __VA_ARGS__)
+#endif
+
+#if !defined(EDB_PERRF)
+#ifdef PRINT_ERRORS
+#include <stdio.h>
+#define EDB_PERRF(fmt, ...) printf(fmt __VA_OPT__(,) __VA_ARGS__)
+#else
+#define EDB_PERRF(...) 
+#endif
+#endif
 
 #include "../spline/spline.h"
 

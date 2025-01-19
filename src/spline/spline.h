@@ -39,8 +39,8 @@
 extern "C" {
 #endif
 
+#include <stddef.h>
 #include <stdint.h>
-#include <stdio.h>
 
 /* Define type for keys and location ids. */
 typedef uint32_t id_t;

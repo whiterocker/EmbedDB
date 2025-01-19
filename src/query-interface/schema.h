@@ -36,11 +36,11 @@
 #ifndef embedDB_SCHEMA_H_
 #define embedDB_SCHEMA_H_
 
+#include "../embedDB/embedDB.h"
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
-
-#include <stdint.h>
 
 #define embedDB_COLUMN_SIGNED 0
 #define embedDB_COLUMN_UNSIGNED 1

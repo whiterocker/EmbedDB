@@ -33,10 +33,9 @@
  */
 /******************************************************************************/
 
-#include "spline.h"
+#include "../embedDB/embedDB.h"
 
 #include <assert.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -254,20 +253,20 @@ void splineBuild(spline *spl, void **data, id_t size, size_t maxError) {
  */
 void splinePrint(spline *spl) {
     if (spl == NULL) {
-        printf("No spline to print.\n");
+        EDB_PRINTF("No spline to print.\n");
         return;
     }
-    printf("Spline max error (%lu):\n", spl->maxError);
-    printf("Spline points (%lu):\n", spl->count);
+    EDB_PRINTF("Spline max error (%lu):\n", spl->maxError);
+    EDB_PRINTF("Spline points (%lu):\n", spl->count);
     uint64_t keyVal = 0;
     uint32_t page = 0;
     for (id_t i = 0; i < spl->count; i++) {
         void *point = splinePointLocation(spl, i);
         memcpy(&keyVal, point, spl->keySize);
         memcpy(&page, (int8_t *)point + spl->keySize, sizeof(uint32_t));
-        printf("[%lu]: (%lu, %li)\n", i, keyVal, page);
+        EDB_PRINTF("[%lu]: (%lu, %li)\n", i, keyVal, page);
     }
-    printf("\n");
+    EDB_PRINTF("\n");
 }
 
 /**

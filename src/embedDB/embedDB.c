@@ -67,9 +67,9 @@ void readToWriteBufVar(embedDBState *state);
 
 void printBitmap(char *bm) {
     for (int8_t i = 0; i <= 7; i++) {
-        printf(" " BYTE_TO_BINARY_PATTERN "", BYTE_TO_BINARY(*(bm + i)));
+        EDB_PRINTF(" " BYTE_TO_BINARY_PATTERN "", BYTE_TO_BINARY(*(bm + i)));
     }
-    printf("\n");
+    EDB_PRINTF("\n");
 }
 
 /**
@@ -138,33 +138,25 @@ void *embedDBGetMaxKey(embedDBState *state, void *buffer) {
  */
 int8_t embedDBInit(embedDBState *state, size_t indexMaxError) {
     if (state->keySize > 8) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: Key size is too large. Max key size is 8 bytes.\n");
-#endif
+        EDB_PERRF("ERROR: Key size is too large. Max key size is 8 bytes.\n");
         return -1;
     }
 
     /* check the number of allocated pages is a multiple of the erase size */
     if (state->numDataPages % state->eraseSizeInPages != 0) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: The number of allocated data pages must be divisible by the erase size in pages.\n");
-#endif
+        EDB_PERRF("ERROR: The number of allocated data pages must be divisible by the erase size in pages.\n");
         return -1;
     }
 
     if (state->numDataPages < (EMBEDDB_USING_RECORD_LEVEL_CONSISTENCY(state->parameters) ? 4 : 2) * state->eraseSizeInPages) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: The minimum number of data pages is twice the eraseSizeInPages or 4 times the eraseSizeInPages if using record-level consistency.\n");
-#endif
+        EDB_PERRF("ERROR: The minimum number of data pages is twice the eraseSizeInPages or 4 times the eraseSizeInPages if using record-level consistency.\n");
         return -1;
     }
 
     state->recordSize = state->keySize + state->dataSize;
     if (EMBEDDB_USING_VDATA(state->parameters)) {
         if (state->numVarPages % state->eraseSizeInPages != 0) {
-#ifdef PRINT_ERRORS
-            printf("ERROR: The number of allocated variable data pages must be divisible by the erase size in pages.\n");
-#endif
+            EDB_PERRF("ERROR: The number of allocated variable data pages must be divisible by the erase size in pages.\n");
             return -1;
         }
         state->recordSize += 4;
@@ -178,9 +170,7 @@ int8_t embedDBInit(embedDBState *state, size_t indexMaxError) {
     state->headerSize = 6;
     if (EMBEDDB_USING_INDEX(state->parameters)) {
         if (state->numIndexPages % state->eraseSizeInPages != 0) {
-#ifdef PRINT_ERRORS
-            printf("ERROR: The number of allocated index pages must be divisible by the erase size in pages.\n");
-#endif
+            EDB_PERRF("ERROR: The number of allocated index pages must be divisible by the erase size in pages.\n");
             return -1;
         }
         state->headerSize += state->bitmapSize;
@@ -204,18 +194,14 @@ int8_t embedDBInit(embedDBState *state, size_t indexMaxError) {
     initBufferPage(state, 0);
 
     if (state->numDataPages < (EMBEDDB_USING_INDEX(state->parameters) * 2 + 2) * state->eraseSizeInPages) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: Number of pages allocated must be at least twice erase block size for embedDB and four times when using indexing. Memory pages: %d\n", state->numDataPages);
-#endif
+        EDB_PERRF("ERROR: Number of pages allocated must be at least twice erase block size for embedDB and four times when using indexing. Memory pages: %d\n", state->numDataPages);
         return -1;
     }
 
     /* Initalize the spline structure if being used */
     if (!EMBEDDB_USING_BINARY_SEARCH(state->parameters)) {
         if (state->numSplinePoints < 4) {
-#ifdef PRINT_ERRORS
-            printf("ERROR: Unable to setup spline with less than 4 points.");
-#endif
+            EDB_PERRF("ERROR: Unable to setup spline with less than 4 points.");
             return -1;
         }
         state->spl = malloc(sizeof(spline));
@@ -234,9 +220,7 @@ int8_t embedDBInit(embedDBState *state, size_t indexMaxError) {
     int8_t indexInitResult = 0;
     if (EMBEDDB_USING_INDEX(state->parameters)) {
         if (state->bufferSizeInBlocks < 4) {
-#ifdef PRINT_ERRORS
-            printf("ERROR: embedDB using index requires at least 4 page buffers.\n");
-#endif
+            EDB_PERRF("ERROR: embedDB using index requires at least 4 page buffers.\n");
             return -1;
         } else {
             indexInitResult = embedDBInitIndex(state);
@@ -254,9 +238,7 @@ int8_t embedDBInit(embedDBState *state, size_t indexMaxError) {
     int8_t varDataInitResult = 0;
     if (EMBEDDB_USING_VDATA(state->parameters)) {
         if (state->bufferSizeInBlocks < 4 + (EMBEDDB_USING_INDEX(state->parameters) ? 2 : 0)) {
-#ifdef PRINT_ERRORS
-            printf("ERROR: embedDB using variable records requires at least 4 page buffers if there is no index and 6 if there is.\n");
-#endif
+            EDB_PERRF("ERROR: embedDB using variable records requires at least 4 page buffers if there is no index and 6 if there is.\n");
             return -1;
         } else {
             varDataInitResult = embedDBInitVarData(state);
@@ -278,9 +260,7 @@ int8_t embedDBInitData(embedDBState *state) {
     state->minDataPageId = 0;
 
     if (state->dataFile == NULL) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: No data file provided!\n");
-#endif
+        EDB_PERRF("ERROR: No data file provided!\n");
         return -1;
     }
 
@@ -306,9 +286,7 @@ int8_t embedDBInitData(embedDBState *state) {
     }
 
     if (!openStatus) {
-#ifdef PRINT_ERRORS
-        printf("Error: Can't open data file!\n");
-#endif
+        EDB_PERRF("Error: Can't open data file!\n");
         return -1;
     }
 
@@ -477,9 +455,7 @@ int8_t embedDBInitDataFromFileWithRecordLevelConsistency(embedDBState *state) {
     if (pagesToBlockBoundary == blockSize) {
         int8_t eraseSuccess = state->fileInterface->erase(count, count + blockSize, state->pageSize, state->dataFile);
         if (!eraseSuccess) {
-#ifdef PRINT_ERRORS
-            printf("Error: Unable to erase data page during recovery!\n");
-#endif
+            EDB_PERRF("Error: Unable to erase data page during recovery!\n");
             return -1;
         }
     }
@@ -526,9 +502,7 @@ int8_t embedDBInitDataFromFileWithRecordLevelConsistency(embedDBState *state) {
         /* need to read the max page into read buffer again so we can copy into the write buffer */
         int8_t readSuccess = readPage(state, (state->rlcPhysicalStartingPage + rlcMaxPage) % state->numDataPages);
         if (readSuccess != 0) {
-#ifdef PRINT_ERRORS
-            printf("Error: Can't read page in data file that was previously read!\n");
-#endif
+            EDB_PERRF("Error: Can't read page in data file that was previously read!\n");
             return -1;
         }
         memcpy(state->buffer, buffer, state->pageSize);
@@ -540,9 +514,7 @@ int8_t embedDBInitDataFromFileWithRecordLevelConsistency(embedDBState *state) {
         eraseEndingPage = eraseStartingPage + blockSize;
         int8_t eraseSuccess = state->fileInterface->erase(eraseStartingPage, eraseEndingPage, state->pageSize, state->dataFile);
         if (!eraseSuccess) {
-#ifdef PRINT_ERRORS
-            printf("Error: Unable to erase pages in data file!\n");
-#endif
+            EDB_PERRF("Error: Unable to erase pages in data file!\n");
             return -1;
         }
         eraseStartingPage = eraseEndingPage % state->numDataPages;
@@ -615,23 +587,17 @@ int8_t embedDBInitIndex(embedDBState *state) {
     state->minIndexPageId = 0;
 
     if (state->numIndexPages < state->eraseSizeInPages * 2) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: Minimum index space is two erase blocks\n");
-#endif
+        EDB_PERRF("ERROR: Minimum index space is two erase blocks\n");
         return -1;
     }
 
     if (state->numIndexPages % state->eraseSizeInPages != 0) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: Ensure index space is a multiple of erase block size\n");
-#endif
+        EDB_PERRF("ERROR: Ensure index space is a multiple of erase block size\n");
         return -1;
     }
 
     if (state->indexFile == NULL) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: No index file provided!\n");
-#endif
+        EDB_PERRF("ERROR: No index file provided!\n");
         return -1;
     }
 
@@ -644,9 +610,7 @@ int8_t embedDBInitIndex(embedDBState *state) {
 
     int8_t openStatus = state->fileInterface->open(state->indexFile, EMBEDDB_FILE_MODE_W_PLUS_B);
     if (!openStatus) {
-#ifdef PRINT_ERRORS
-        printf("Error: Can't open index file!\n");
-#endif
+        EDB_PERRF("Error: Can't open index file!\n");
         return -1;
     }
 
@@ -712,9 +676,7 @@ int8_t embedDBInitVarData(embedDBState *state) {
 
     int8_t openResult = state->fileInterface->open(state->varFile, EMBEDDB_FILE_MODE_W_PLUS_B);
     if (!openResult) {
-#ifdef PRINT_ERRORS
-        printf("Error: Can't open variable data file!\n");
-#endif
+        EDB_PERRF("Error: Can't open variable data file!\n");
         return -1;
     }
 
@@ -814,9 +776,7 @@ int8_t embedDBInitVarDataFromFile(embedDBState *state) {
     id_t minVarPageId = 0;
     int8_t readResult = readVariablePage(state, physicalPageIDOfSmallestData);
     if (readResult != 0) {
-#ifdef PRINT_ERRORS
-        printf("Error reading variable page with smallest data. \n");
-#endif
+        EDB_PERRF("Error reading variable page with smallest data. \n");
         return -1;
     }
 
@@ -834,9 +794,7 @@ int8_t embedDBInitVarDataFromFile(embedDBState *state) {
             dataBuffer = (int8_t *)state->buffer + state->pageSize * EMBEDDB_DATA_READ_BUFFER;
             readResult = readPage(state, state->minDataPageId % state->numDataPages);
             if (readResult != 0) {
-#ifdef PRINT_ERRORS
-                printf("Error reading page in data file when recovering variable data. \n");
-#endif
+                EDB_PERRF("Error reading page in data file when recovering variable data. \n");
                 return -1;
             }
         }
@@ -862,11 +820,11 @@ int8_t embedDBInitVarDataFromFile(embedDBState *state) {
  * @param   state   embedDB state structure
  */
 void embedDBPrintInit(embedDBState *state) {
-    printf("EmbedDB State Initialization Stats:\n");
-    printf("Buffer size: %d  Page size: %d\n", state->bufferSizeInBlocks, state->pageSize);
-    printf("Key size: %d Data size: %d %sRecord size: %d\n", state->keySize, state->dataSize, EMBEDDB_USING_VDATA(state->parameters) ? "Variable data pointer size: 4 " : "", state->recordSize);
-    printf("Use index: %d  Max/min: %d Sum: %d Bmap: %d\n", EMBEDDB_USING_INDEX(state->parameters), EMBEDDB_USING_MAX_MIN(state->parameters), EMBEDDB_USING_SUM(state->parameters), EMBEDDB_USING_BMAP(state->parameters));
-    printf("Header size: %d  Records per page: %d\n", state->headerSize, state->maxRecordsPerPage);
+    EDB_PRINTF("EmbedDB State Initialization Stats:\n");
+    EDB_PRINTF("Buffer size: %d  Page size: %d\n", state->bufferSizeInBlocks, state->pageSize);
+    EDB_PRINTF("Key size: %d Data size: %d %sRecord size: %d\n", state->keySize, state->dataSize, EMBEDDB_USING_VDATA(state->parameters) ? "Variable data pointer size: 4 " : "", state->recordSize);
+    EDB_PRINTF("Use index: %d  Max/min: %d Sum: %d Bmap: %d\n", EMBEDDB_USING_INDEX(state->parameters), EMBEDDB_USING_MAX_MIN(state->parameters), EMBEDDB_USING_SUM(state->parameters), EMBEDDB_USING_BMAP(state->parameters));
+    EDB_PRINTF("Header size: %d  Records per page: %d\n", state->headerSize, state->maxRecordsPerPage);
 }
 
 /**
@@ -1015,9 +973,7 @@ int8_t embedDBPut(embedDBState *state, void *key, void *data) {
             previousKey = (int8_t *)state->buffer + (state->recordSize * (count - 1)) + state->headerSize;
         }
         if (state->compareKey(key, previousKey) != 1) {
-#ifdef PRINT_ERRORS
-            printf("Keys must be strictly ascending order. Insert Failed.\n");
-#endif
+            EDB_PERRF("Keys must be strictly ascending order. Insert Failed.\n");
             return 1;
         }
     }
@@ -1143,9 +1099,7 @@ int8_t shiftRecordLevelConsistencyBlocks(embedDBState *state) {
         eraseEndingPage = eraseStartingPage + state->eraseSizeInPages;
         int8_t eraseSuccess = state->fileInterface->erase(eraseStartingPage, eraseEndingPage, state->pageSize, state->dataFile);
         if (!eraseSuccess) {
-#ifdef PRINT_ERRORS
-            printf("Error: Unable to erase pages in data file when shifting record level consistency blocks!\n");
-#endif
+            EDB_PERRF("Error: Unable to erase pages in data file when shifting record level consistency blocks!\n");
             return -1;
         }
         eraseStartingPage = eraseEndingPage % state->numDataPages;
@@ -1189,9 +1143,7 @@ void updateMaxiumError(embedDBState *state, void *buffer) {
  */
 int8_t embedDBPutVar(embedDBState *state, void *key, void *data, void *variableData, uint32_t length) {
     if (!EMBEDDB_USING_VDATA(state->parameters)) {
-#ifdef PRINT_ERRORS
-        printf("Error: Can't insert variable data because it is not enabled\n");
-#endif
+        EDB_PERRF("Error: Can't insert variable data because it is not enabled\n");
         return -1;
     }
 
@@ -1509,9 +1461,7 @@ int8_t embedDBGet(embedDBState *state, void *key, void *data) {
     }
 
     if (searchResult != 0) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: embedDBGet was unable to find page to search for record\n");
-#endif
+        EDB_PERRF("ERROR: embedDBGet was unable to find page to search for record\n");
         return -1;
     }
 
@@ -1539,9 +1489,7 @@ int8_t embedDBGet(embedDBState *state, void *key, void *data) {
  */
 int8_t embedDBGetVar(embedDBState *state, void *key, void *data, embedDBVarDataStream **varData) {
     if (!EMBEDDB_USING_VDATA(state->parameters)) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: embedDBGetVar called when not using variable data\n");
-#endif
+        EDB_PERRF("ERROR: embedDBGetVar called when not using variable data\n");
         return 0;
     }
     void *outputBuffer = (int8_t *)state->buffer;
@@ -1597,13 +1545,11 @@ void embedDBInitIterator(embedDBState *state, embedDBIterator *it) {
         }
     }
 
-#ifdef PRINT_ERRORS
     if (!EMBEDDB_USING_BMAP(state->parameters)) {
-        printf("WARN: Iterator not using index. If this is not intended, ensure that the embedDBState is using a bitmap and was initialized with an index file\n");
+        EDB_PERRF("WARN: Iterator not using index. If this is not intended, ensure that the embedDBState is using a bitmap and was initialized with an index file\n");
     } else if (!EMBEDDB_USING_INDEX(state->parameters)) {
-        printf("WARN: Iterator not using index to full extent. If this is not intended, ensure that the embedDBState was initialized with an index file\n");
+        EDB_PERRF("WARN: Iterator not using index to full extent. If this is not intended, ensure that the embedDBState was initialized with an index file\n");
     }
-#endif
 
     /* Determine which data page should be the first examined if there is a min key and that we have spline points */
     if (state->spl->count != 0 && it->minKey != NULL && !(EMBEDDB_USING_BINARY_SEARCH(state->parameters))) {
@@ -1643,9 +1589,7 @@ int8_t embedDBFlushVar(embedDBState *state) {
     // only flush variable buffer
     id_t writeResult = writeVariablePage(state, (int8_t *)state->buffer + EMBEDDB_VAR_WRITE_BUFFER(state->parameters) * state->pageSize);
     if (writeResult == -1) {
-#ifdef PRINT_ERRORS
-        printf("Failed to write variable data page during embedDBFlushVar.");
-#endif
+        EDB_PERRF("Failed to write variable data page during embedDBFlushVar.");
         return -1;
     }
 
@@ -1672,9 +1616,7 @@ int8_t embedDBFlush(embedDBState *state) {
 
     id_t pageNum = writePage(state, buffer);
     if (pageNum == -1) {
-#ifdef PRINT_ERRORS
-        printf("Failed to write page during embedDBFlush.");
-#endif
+        EDB_PERRF("Failed to write page during embedDBFlush.");
         return -1;
     }
 
@@ -1693,9 +1635,7 @@ int8_t embedDBFlush(embedDBState *state) {
 
         id_t writeResult = writeIndexPage(state, buf);
         if (writeResult == -1) {
-#ifdef PRINT_ERRORS
-            printf("Failed to write index page during embedDBFlush.");
-#endif
+	    EDB_PERRF("Failed to write index page during embedDBFlush.");
             return -1;
         }
 
@@ -1712,9 +1652,7 @@ int8_t embedDBFlush(embedDBState *state) {
     if (EMBEDDB_USING_VDATA(state->parameters)) {
         int8_t varFlushResult = embedDBFlushVar(state);
         if (varFlushResult != 0) {
-#ifdef PRINT_ERRORS
-            printf("Failed to flush variable data page");
-#endif
+            EDB_PERRF("Failed to flush variable data page");
             return -1;
         }
     }
@@ -1749,9 +1687,7 @@ int8_t embedDBNext(embedDBState *state, embedDBIterator *it, void *key, void *da
                 // If the index page that contains this data page exists, else we must read the data page regardless cause we don't have the index saved for it
 
                 if (readIndexPage(state, indexPage % state->numIndexPages) != 0) {
-#ifdef PRINT_ERRORS
-                    printf("ERROR: Failed to read index page %i (%i)\n", indexPage, indexPage % state->numIndexPages);
-#endif
+                    EDB_PERRF("ERROR: Failed to read index page %i (%i)\n", indexPage, indexPage % state->numIndexPages);
                     return 0;
                 }
 
@@ -1768,9 +1704,7 @@ int8_t embedDBNext(embedDBState *state, embedDBIterator *it, void *key, void *da
         }
 
         if (searchWriteBuf == 0 && readPage(state, it->nextDataPage % state->numDataPages) != 0) {
-#ifdef PRINT_ERRORS
-            printf("ERROR: Failed to read data page %i (%i)\n", it->nextDataPage, it->nextDataPage % state->numDataPages);
-#endif
+            EDB_PERRF("ERROR: Failed to read data page %i (%i)\n", it->nextDataPage, it->nextDataPage % state->numDataPages);
             return 0;
         }
 
@@ -1816,9 +1750,7 @@ int8_t embedDBNext(embedDBState *state, embedDBIterator *it, void *key, void *da
  */
 int8_t embedDBNextVar(embedDBState *state, embedDBIterator *it, void *key, void *data, embedDBVarDataStream **varData) {
     if (!EMBEDDB_USING_VDATA(state->parameters)) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: embedDBNextVar called when not using variable data\n");
-#endif
+        EDB_PERRF("ERROR: embedDBNextVar called when not using variable data\n");
         return 0;
     }
 
@@ -1877,9 +1809,7 @@ int8_t embedDBSetupVarDataStream(embedDBState *state, void *key, embedDBVarDataS
 
     // Read in page
     if (readVariablePage(state, pageNum) != 0) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: embedDB failed to read variable page\n");
-#endif
+        EDB_PERRF("ERROR: embedDB failed to read variable page\n");
         return 2;
     }
 
@@ -1901,9 +1831,7 @@ int8_t embedDBSetupVarDataStream(embedDBState *state, void *key, embedDBVarDataS
     // Create varDataStream
     embedDBVarDataStream *varDataStream = malloc(sizeof(embedDBVarDataStream));
     if (varDataStream == NULL) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: Failed to alloc memory for embedDBVarDataStream\n");
-#endif
+        EDB_PERRF("ERROR: Failed to alloc memory for embedDBVarDataStream\n");
         return 3;
     }
 
@@ -1926,18 +1854,14 @@ int8_t embedDBSetupVarDataStream(embedDBState *state, void *key, embedDBVarDataS
  */
 uint32_t embedDBVarDataStreamRead(embedDBState *state, embedDBVarDataStream *stream, void *buffer, uint32_t length) {
     if (buffer == NULL) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: Cannot pass null buffer to embedDBVarDataStreamRead\n");
-#endif
+        EDB_PERRF("ERROR: Cannot pass null buffer to embedDBVarDataStreamRead\n");
         return 0;
     }
 
     // Read in var page containing the data to read
     uint32_t pageNum = (stream->fileOffset / state->pageSize) % state->numVarPages;
     if (readVariablePage(state, pageNum) != 0) {
-#ifdef PRINT_ERRORS
-        printf("ERROR: Couldn't read variable data page %d\n", pageNum);
-#endif
+        EDB_PERRF("ERROR: Couldn't read variable data page %d\n", pageNum);
         return 0;
     }
 
@@ -1956,9 +1880,7 @@ uint32_t embedDBVarDataStreamRead(embedDBState *state, embedDBVarDataStream *str
         if (amtRead < length && stream->bytesRead < stream->totalBytes) {
             pageNum = (pageNum + 1) % state->numVarPages;
             if (readVariablePage(state, pageNum) != 0) {
-#ifdef PRINT_ERRORS
-                printf("ERROR: Couldn't read variable data page %d\n", pageNum);
-#endif
+                EDB_PERRF("ERROR: Couldn't read variable data page %d\n", pageNum);
                 return 0;
             }
             // Skip past the header
@@ -1974,12 +1896,12 @@ uint32_t embedDBVarDataStreamRead(embedDBState *state, embedDBVarDataStream *str
  * @param	state	embedDB state structure
  */
 void embedDBPrintStats(embedDBState *state) {
-    printf("Num reads: %d\n", state->numReads);
-    printf("Buffer hits: %d\n", state->bufferHits);
-    printf("Num writes: %d\n", state->numWrites);
-    printf("Num index reads: %d\n", state->numIdxReads);
-    printf("Num index writes: %d\n", state->numIdxWrites);
-    printf("Max Error: %d\n", state->maxError);
+    EDB_PRINTF("Num reads: %d\n", state->numReads);
+    EDB_PRINTF("Buffer hits: %d\n", state->bufferHits);
+    EDB_PRINTF("Num writes: %d\n", state->numWrites);
+    EDB_PRINTF("Num index reads: %d\n", state->numIdxReads);
+    EDB_PRINTF("Num index writes: %d\n", state->numIdxWrites);
+    EDB_PRINTF("Max Error: %d\n", state->maxError);
 
     if (!EMBEDDB_USING_BINARY_SEARCH(state->parameters)) {
         splinePrint(state->spl);
@@ -2007,9 +1929,7 @@ id_t writePage(embedDBState *state, void *buffer) {
         /* Erase pages to make space for new data */
         int8_t eraseResult = state->fileInterface->erase(physicalPageNum, physicalPageNum + state->eraseSizeInPages, state->pageSize, state->dataFile);
         if (eraseResult != 1) {
-#ifdef PRINT_ERRORS
-            printf("Failed to erase data page: %i (%i)\n", pageNum, physicalPageNum);
-#endif
+            EDB_PERRF("Failed to erase data page: %i (%i)\n", pageNum, physicalPageNum);
             return -1;
         }
 
@@ -2026,9 +1946,7 @@ id_t writePage(embedDBState *state, void *buffer) {
     /* Seek to page location in file */
     int32_t val = state->fileInterface->write(buffer, physicalPageNum, state->pageSize, state->dataFile);
     if (val == 0) {
-#ifdef PRINT_ERRORS
-        printf("Failed to write data page: %i (%i)\n", pageNum, physicalPageNum);
-#endif
+        EDB_PERRF("Failed to write data page: %i (%i)\n", pageNum, physicalPageNum);
         return -1;
     }
 
@@ -2040,9 +1958,7 @@ id_t writePage(embedDBState *state, void *buffer) {
 
 int8_t writeTemporaryPage(embedDBState *state, void *buffer) {
     if (state->dataFile == NULL) {
-#ifdef PRINT_ERRORS
-        printf("The dataFile in embedDBState was null.");
-#endif
+        EDB_PERRF("The dataFile in embedDBState was null.");
         return -3;
     }
 
@@ -2072,19 +1988,15 @@ int8_t writeTemporaryPage(embedDBState *state, void *buffer) {
 
         int8_t eraseSuccess = state->fileInterface->erase(eraseStartingPage, eraseEndingPage, state->pageSize, state->dataFile);
         if (!eraseSuccess) {
-#ifdef PRINT_ERRORS
-            printf("Failed to erase block starting at physical page %i in the data file.", state->nextRLCPhysicalPageLocation);
+            EDB_PERRF("Failed to erase block starting at physical page %i in the data file.", state->nextRLCPhysicalPageLocation);
             return -2;
-#endif
         }
     }
 
     /* Write temporary page to storage */
     int8_t writeSuccess = state->fileInterface->write(buffer, state->nextRLCPhysicalPageLocation++, state->pageSize, state->dataFile);
     if (!writeSuccess) {
-#ifdef PRINT_ERRORS
-        printf("Failed to write temporary page for record-level-consistency: Logical Page Number %i - Physical Page (%i)\n", state->nextDataPageId, state->nextRLCPhysicalPageLocation - 1);
-#endif
+        EDB_PERRF("Failed to write temporary page for record-level-consistency: Logical Page Number %i - Physical Page (%i)\n", state->nextDataPageId, state->nextRLCPhysicalPageLocation - 1);
         return -1;
     }
 
@@ -2139,9 +2051,7 @@ id_t writeIndexPage(embedDBState *state, void *buffer) {
         // Erase index pages to make room for new page
         int8_t eraseResult = state->fileInterface->erase(physicalPageNumber, physicalPageNumber + state->eraseSizeInPages, state->pageSize, state->indexFile);
         if (eraseResult != 1) {
-#ifdef PRINT_ERRORS
-            printf("Failed to erase data page: %i (%i)\n", pageNum, physicalPageNumber);
-#endif
+            EDB_PERRF("Failed to erase data page: %i (%i)\n", pageNum, physicalPageNumber);
             return -1;
         }
         state->numAvailIndexPages += state->eraseSizeInPages;
@@ -2151,9 +2061,7 @@ id_t writeIndexPage(embedDBState *state, void *buffer) {
     /* Seek to page location in file */
     int32_t val = state->fileInterface->write(buffer, physicalPageNumber, state->pageSize, state->indexFile);
     if (val == 0) {
-#ifdef PRINT_ERRORS
-        printf("Failed to write index page: %i (%i)\n", pageNum, physicalPageNumber);
-#endif
+        EDB_PERRF("Failed to write index page: %i (%i)\n", pageNum, physicalPageNumber);
         return -1;
     }
 
@@ -2181,9 +2089,7 @@ id_t writeVariablePage(embedDBState *state, void *buffer) {
     if (state->numAvailVarPages <= 0) {
         int8_t eraseResult = state->fileInterface->erase(physicalPageId, physicalPageId + state->eraseSizeInPages, state->pageSize, state->varFile);
         if (eraseResult != 1) {
-#ifdef PRINT_ERRORS
-            printf("Failed to erase data page: %i (%i)\n", state->nextVarPageId, physicalPageId);
-#endif
+            EDB_PERRF("Failed to erase data page: %i (%i)\n", state->nextVarPageId, physicalPageId);
             return -1;
         }
         state->numAvailVarPages += state->eraseSizeInPages;
@@ -2206,9 +2112,7 @@ id_t writeVariablePage(embedDBState *state, void *buffer) {
     // Write to file
     uint32_t val = state->fileInterface->write(buffer, physicalPageId, state->pageSize, state->varFile);
     if (val == 0) {
-#ifndef PRINT
-        printf("Failed to write vardata page: %i\n", state->nextVarPageId);
-#endif
+        EDB_PERRF("Failed to write vardata page: %i\n", state->nextVarPageId);
         return -1;
     }
 
