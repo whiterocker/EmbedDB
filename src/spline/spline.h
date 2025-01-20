@@ -42,26 +42,26 @@ extern "C" {
 #include <stddef.h>
 #include <stdint.h>
 
-/* Define type for keys and location ids. */
-typedef uint32_t id_t;
+/* Define type for page ids (physical and logical). */
+typedef uint32_t pgid_t;
 
 typedef struct spline_s spline;
 
 struct spline_s {
-    size_t count;            /* Number of points in spline */
-    size_t size;             /* Maximum number of points */
-    size_t pointsStartIndex; /* Index of the first spline point */
-    void *points;            /* Array of points */
-    void *upper;             /* Upper spline limit */
-    void *lower;             /* Lower spline limit */
-    void *firstSplinePoint;  /* First Point that was added to the spline */
-    uint32_t lastLoc;        /* Location of previous spline key */
-    void *lastKey;           /* Previous spline key */
-    uint32_t eraseSize;      /* Size of points to erase if none can be cleaned */
-    uint32_t maxError;       /* Maximum error */
-    uint32_t numAddCalls;    /* Number of times the add method has been called */
-    uint32_t tempLastPoint;  /* Last spline point is temporary if value is not 0 */
-    uint8_t keySize;         /* Size of key in bytes */
+  size_t   count;             /* Number of points in spline */
+  size_t   size;              /* Maximum number of points */
+  size_t   pointsStartIndex;  /* Index of the first spline point */
+  void *   points;            /* Array of points */
+  void *   upper;             /* Upper spline limit */
+  void *   lower;             /* Lower spline limit */
+  void *   firstSplinePoint;  /* First Point that was added to the spline */
+  uint32_t lastLoc;           /* Location of previous spline key */
+  void *   lastKey;           /* Previous spline key */
+  uint32_t eraseSize;         /* Size of points to erase if none can be cleaned */
+  uint32_t maxError;          /* Maximum error */
+  uint32_t numAddCalls;       /* Number of times the add method has been called */
+  uint32_t tempLastPoint;     /* Last spline point is temporary if value is not 0 */
+  uint8_t  keySize;           /* Size of key in bytes */
 };
 
 /**
@@ -71,7 +71,7 @@ struct spline_s {
  * @param    maxError   Maximum error allowed in spline
  * @param    keySize    Size of key in bytes
  */
-void splineInit(spline *spl, id_t size, size_t maxError, uint8_t keySize);
+void splineInit(spline * spl, pgid_t size, size_t maxError, uint8_t keySize);
 
 /**
  * @brief	Builds a spline structure given a sorted data set. GreedySplineCorridor
@@ -82,7 +82,7 @@ void splineInit(spline *spl, id_t size, size_t maxError, uint8_t keySize);
  * @param	size		Number of values in array
  * @param   maxError	Maximum error for each spline
  */
-void splineBuild(spline *spl, void **data, id_t size, size_t maxError);
+void splineBuild(spline * spl, void ** data, pgid_t size, size_t maxError);
 
 /**
  * @brief   Adds point to spline structure
@@ -90,19 +90,19 @@ void splineBuild(spline *spl, void **data, id_t size, size_t maxError);
  * @param   key     Data key to be added (must be incrementing)
  * @param   page    Page number for spline point to add
  */
-void splineAdd(spline *spl, void *key, uint32_t page);
+void splineAdd(spline * spl, void * key, uint32_t page);
 
 /**
  * @brief	Print a spline structure.
  * @param	spl	Spline structure
  */
-void splinePrint(spline *spl);
+void splinePrint(spline * spl);
 
 /**
  * @brief	Return spline structure size in bytes.
  * @param	spl	Spline structure
  */
-uint32_t splineSize(spline *spl);
+uint32_t splineSize(spline * spl);
 
 /**
  * @brief	Estimate the page number of a given key
@@ -113,13 +113,18 @@ uint32_t splineSize(spline *spl);
  * @param	low			A return value for the smallest page that it could be on
  * @param	high		A return value for the largest page it could be on
  */
-void splineFind(spline *spl, void *key, int8_t compareKey(void *, void *), id_t *loc, id_t *low, id_t *high);
+void splineFind(spline * spl,
+		void *   key,
+		int8_t   compareKey(void *, void *),
+		pgid_t * loc,
+		pgid_t * low,
+		pgid_t * high);
 
 /**
  * @brief    Free memory allocated for spline structure.
  * @param    spl        Spline structure
  */
-void splineClose(spline *spl);
+void splineClose(spline * spl);
 
 /**
  * @brief   Removes points from the spline
@@ -127,14 +132,16 @@ void splineClose(spline *spl);
  * @param   numPoints   The number of points to remove from the spline
  * @return  Returns zero if successful and one if not
  */
-int splineErase(spline *spl, uint32_t numPoints);
+int splineErase(spline * spl,
+		uint32_t numPoints);
 
 /**
  * @brief   Returns a pointer to the location of the specified spline point in memory. Note that this method does not check if there is a point there, so it may be garbage data.
  * @param   spl         The spline structure that contains the points
  * @param   pointIndex  The index of the point to return a pointer to
  */
-void *splinePointLocation(spline *spl, size_t pointIndex);
+void * splinePointLocation(spline * spl,
+			   size_t   pointIndex);
 
 #ifdef __cplusplus
 }

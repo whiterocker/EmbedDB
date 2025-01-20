@@ -44,137 +44,163 @@
 /**
  * @return	Returns -1, 0, 1 as a comparator normally would
  */
-int8_t compareUnsignedNumbers(const void* num1, const void* num2, int8_t numBytes) {
-    // Cast the pointers to unsigned char pointers for byte-wise comparison
-    const uint8_t* bytes1 = (const uint8_t*)num1;
-    const uint8_t* bytes2 = (const uint8_t*)num2;
-
-    for (int8_t i = numBytes - 1; i >= 0; i--) {
-        if (bytes1[i] < bytes2[i]) {
-            return -1;
-        } else if (bytes1[i] > bytes2[i]) {
-            return 1;
-        }
+static int8_t
+compareUnsignedNumbers(const void * num1,
+		       const void * num2,
+		       int8_t       numBytes)
+{
+  // Cast the pointers to unsigned char pointers for byte-wise comparison
+  const uint8_t* bytes1 = (const uint8_t*)num1;
+  const uint8_t* bytes2 = (const uint8_t*)num2;
+  
+  for (int8_t i = numBytes - 1; i >= 0; i--) {
+    if (bytes1[i] < bytes2[i]) {
+      return -1;
+    } else if (bytes1[i] > bytes2[i]) {
+      return 1;
     }
-
-    // Both numbers are equal
-    return 0;
+  }
+  
+  // Both numbers are equal
+  return 0;
 }
 
 /**
  * @return	Returns -1, 0, 1 as a comparator normally would
  */
-int8_t compareSignedNumbers(const void* num1, const void* num2, int8_t numBytes) {
-    // Cast the pointers to unsigned char pointers for byte-wise comparison
-    const uint8_t* bytes1 = (const uint8_t*)num1;
-    const uint8_t* bytes2 = (const uint8_t*)num2;
-
-    // Check the sign bits of the most significant bytes
-    int sign1 = bytes1[numBytes - 1] & 0x80;
-    int sign2 = bytes2[numBytes - 1] & 0x80;
-
-    if (sign1 != sign2) {
-        // Different signs, negative number is smaller
-        return (sign1 ? -1 : 1);
+static int8_t
+compareSignedNumbers(const void * num1,
+		     const void * num2,
+		     int8_t       numBytes)
+{
+  // Cast the pointers to unsigned char pointers for byte-wise comparison
+  const uint8_t* bytes1 = (const uint8_t*)num1;
+  const uint8_t* bytes2 = (const uint8_t*)num2;
+  
+  // Check the sign bits of the most significant bytes
+  int sign1 = bytes1[numBytes - 1] & 0x80;
+  int sign2 = bytes2[numBytes - 1] & 0x80;
+  
+  if (sign1 != sign2) {
+    // Different signs, negative number is smaller
+    return (sign1 ? -1 : 1);
+  }
+  
+  // Same sign, perform regular byte-wise comparison
+  for (int8_t i = numBytes - 1; i >= 0; i--) {
+    if (bytes1[i] < bytes2[i]) {
+      return -1;
+    } else if (bytes1[i] > bytes2[i]) {
+      return 1;
     }
-
-    // Same sign, perform regular byte-wise comparison
-    for (int8_t i = numBytes - 1; i >= 0; i--) {
-        if (bytes1[i] < bytes2[i]) {
-            return -1;
-        } else if (bytes1[i] > bytes2[i]) {
-            return 1;
-        }
-    }
-
-    // Both numbers are equal
-    return 0;
+  }
+  
+  // Both numbers are equal
+  return 0;
 }
 
 /**
  * @return	0 or 1 to indicate if inequality is true
  */
-int8_t compare(void* a, uint8_t operation, void* b, int8_t isSigned, int8_t numBytes) {
-    int8_t (*compFunc)(const void* num1, const void* num2, int8_t numBytes) = isSigned ? compareSignedNumbers : compareUnsignedNumbers;
-    switch (operation) {
-        case SELECT_GT:
-            return compFunc(a, b, numBytes) > 0;
-        case SELECT_LT:
-            return compFunc(a, b, numBytes) < 0;
-        case SELECT_GTE:
-            return compFunc(a, b, numBytes) >= 0;
-        case SELECT_LTE:
-            return compFunc(a, b, numBytes) <= 0;
-        case SELECT_EQ:
-            return compFunc(a, b, numBytes) == 0;
-        case SELECT_NEQ:
-            return compFunc(a, b, numBytes) != 0;
-        default:
-            return 0;
-    }
+static int8_t
+compare(void *  a,
+	uint8_t operation,
+	void *  b,
+	int8_t  isSigned,
+	int8_t  numBytes)
+{
+  int8_t (*compFunc)(const void* num1, const void* num2, int8_t numBytes) =
+    isSigned ? compareSignedNumbers : compareUnsignedNumbers;
+  switch (operation) {
+  case SELECT_GT:
+    return compFunc(a, b, numBytes) > 0;
+  case SELECT_LT:
+    return compFunc(a, b, numBytes) < 0;
+  case SELECT_GTE:
+    return compFunc(a, b, numBytes) >= 0;
+  case SELECT_LTE:
+    return compFunc(a, b, numBytes) <= 0;
+  case SELECT_EQ:
+    return compFunc(a, b, numBytes) == 0;
+  case SELECT_NEQ:
+    return compFunc(a, b, numBytes) != 0;
+  default:
+    return 0;
+  }
 }
 
 /**
  * @brief	Extract a record from an operator
  * @return	1 if a record was returned, 0 if there are no more rows to return
  */
-int8_t exec(embedDBOperator* op) {
-    return op->next(op);
+int8_t
+exec(embedDBOperator* op) {
+  return op->next(op);
 }
 
-void initTableScan(embedDBOperator* op) {
-    if (op->input != NULL) {
-        EDB_PERRF("WARNING: TableScan operator should not have an input operator\n");
-    }
-    if (op->schema == NULL) {
-        EDB_PERRF("ERROR: TableScan operator needs its schema defined\n");
-        return;
-    }
+static void
+initTableScan(embedDBOperator* op)
+{
+  if (op->input != NULL) {
+    EDB_PERRF("WARNING: TableScan operator should not have an input operator\n");
+  }
+  if (op->schema == NULL) {
+    EDB_PERRF("ERROR: TableScan operator needs its schema defined\n");
+    return;
+  }
+  
+  if (op->schema->numCols < 2) {
+    EDB_PERRF("ERROR: When creating a table scan, you must include at least two columns:"
+	      " one for the key and one for the data from the iterator\n");
+    return;
+  }
+  
+  // Check that the provided key schema matches what is in the state
+  embedDBState* embedDBstate = (embedDBState*)(((void**)op->state)[0]);
+  if ((op->schema->columnSizes[0] <= 0) ||
+      (abs(op->schema->columnSizes[0]) != embedDBstate->keySize)) {
+    EDB_PERRF("ERROR: Make sure the the key column is at index 0 of the schema "
+	      "initialization and that it matches the keySize in the state and is unsigned.\n");
+    return;
+  }
+  if (getRecordSizeFromSchema(op->schema) != (embedDBstate->keySize + embedDBstate->dataSize)) {
+    EDB_PERRF("ERROR: Size of provided schema doesn't match the size that "
+	      "will be returned by the provided iterator.\n");
+    return;
+  }
 
-    if (op->schema->numCols < 2) {
-        EDB_PERRF("ERROR: When creating a table scan, you must include at least two columns: one for the key and one for the data from the iterator\n");
-        return;
-    }
-
-    // Check that the provided key schema matches what is in the state
-    embedDBState* embedDBstate = (embedDBState*)(((void**)op->state)[0]);
-    if (op->schema->columnSizes[0] <= 0 || abs(op->schema->columnSizes[0]) != embedDBstate->keySize) {
-        EDB_PERRF("ERROR: Make sure the the key column is at index 0 of the schema initialization and that it matches the keySize in the state and is unsigned\n");
-        return;
-    }
-    if (getRecordSizeFromSchema(op->schema) != (embedDBstate->keySize + embedDBstate->dataSize)) {
-        EDB_PERRF("ERROR: Size of provided schema doesn't match the size that will be returned by the provided iterator\n");
-        return;
-    }
-
-    // Init buffer
+  // Init buffer
+  if (op->recordBuffer == NULL) {
+    op->recordBuffer = createBufferFromSchema(op->schema);
     if (op->recordBuffer == NULL) {
-        op->recordBuffer = createBufferFromSchema(op->schema);
-        if (op->recordBuffer == NULL) {
-            EDB_PERRF("ERROR: Failed to allocate buffer for TableScan operator.\n");
-            return;
-        }
+      EDB_PERRF("ERROR: Failed to allocate buffer for TableScan operator.\n");
+      return;
     }
+  }
 }
 
-int8_t nextTableScan(embedDBOperator* op) {
-    // Check that a schema was set
-    if (op->schema == NULL) {
-        EDB_PERRF("ERROR: Must provide a base schema for a table scan operator\n");
-        return 0;
-    }
-
-    // Get next record
-    embedDBState* state = (embedDBState*)(((void**)op->state)[0]);
-    embedDBIterator* it = (embedDBIterator*)(((void**)op->state)[1]);
-    if (!embedDBNext(state, it, op->recordBuffer, (int8_t*)op->recordBuffer + state->keySize)) {
-        return 0;
-    }
-
-    return 1;
+static int8_t
+nextTableScan(embedDBOperator* op)
+{
+  // Check that a schema was set
+  if (op->schema == NULL) {
+    EDB_PERRF("ERROR: Must provide a base schema for a table scan operator\n");
+    return 0;
+  }
+  
+  // Get next record
+  embedDBState* state = (embedDBState*)(((void**)op->state)[0]);
+  embedDBIterator* it = (embedDBIterator*)(((void**)op->state)[1]);
+  if (!embedDBNext(state, it, op->recordBuffer, (int8_t*)op->recordBuffer + state->keySize)) {
+    return 0;
+  }
+  
+  return 1;
 }
 
-void closeTableScan(embedDBOperator* op) {
+static void
+closeTableScan(embedDBOperator* op)
+{
   embedDBFreeSchema(&op->schema);
   if (EDB_WITH_HEAP) {
     free(op->recordBuffer);
@@ -236,7 +262,9 @@ createTableScanOperator(embedDBState *    state,
   return op;
 }
 
-void initProjection(embedDBOperator* op) {
+static void
+initProjection(embedDBOperator* op)
+{
   if (!op->input) {
     EDB_PERRF("ERROR: Projection needs an input operator.\n");
   }
@@ -283,37 +311,41 @@ void initProjection(embedDBOperator* op) {
   }
 }
 
-int8_t nextProjection(embedDBOperator* op) {
-    uint8_t numCols = *(uint8_t*)op->state;
-    uint8_t* cols = (uint8_t*)op->state + 1;
-    embedDBSchema* inputSchema = op->input->schema;
-
-    // Get next record
-    if (op->input->next(op->input)) {
-        uint16_t curColPos = 0;
-        for (uint8_t colIdx = 0; colIdx < numCols; colIdx++) {
-            uint8_t col = cols[colIdx];
-            uint8_t colSize = abs(inputSchema->columnSizes[col]);
-            uint16_t srcColPos = getColOffsetFromSchema(inputSchema, col);
-            memcpy((int8_t*)op->recordBuffer + curColPos, (int8_t*)op->input->recordBuffer + srcColPos, colSize);
-            curColPos += colSize;
-        }
-        return 1;
-    } else {
-        return 0;
+static int8_t
+nextProjection(embedDBOperator* op)
+{
+  uint8_t numCols = *(uint8_t*)op->state;
+  uint8_t* cols = (uint8_t*)op->state + 1;
+  embedDBSchema* inputSchema = op->input->schema;
+  
+  // Get next record
+  if (op->input->next(op->input)) {
+    uint16_t curColPos = 0;
+    for (uint8_t colIdx = 0; colIdx < numCols; colIdx++) {
+      uint8_t col = cols[colIdx];
+      uint8_t colSize = abs(inputSchema->columnSizes[col]);
+      uint16_t srcColPos = getColOffsetFromSchema(inputSchema, col);
+      memcpy((int8_t*)op->recordBuffer + curColPos, (int8_t*)op->input->recordBuffer + srcColPos, colSize);
+      curColPos += colSize;
     }
+    return 1;
+  } else {
+    return 0;
+  }
 }
 
-void closeProjection(embedDBOperator* op) {
-    op->input->close(op->input);
-
-    embedDBFreeSchema(&op->schema);
-    if (EDB_WITH_HEAP) {
-      free(op->state);
-      op->state = NULL;
-      free(op->recordBuffer);
-      op->recordBuffer = NULL;
-    }
+static void
+closeProjection(embedDBOperator* op)
+{
+  op->input->close(op->input);
+  
+  embedDBFreeSchema(&op->schema);
+  if (EDB_WITH_HEAP) {
+    free(op->state);
+    op->state = NULL;
+    free(op->recordBuffer);
+    op->recordBuffer = NULL;
+  }
 }
 
 /**
@@ -364,62 +396,70 @@ createProjectionOperator(embedDBOperator * input,
   return op;
 }
 
+// -------------------------------------------------------------------------
+
 struct selectionInfo {
-    int8_t colNum;
-    int8_t operation;
-    void* compVal;
+  int8_t colNum;
+  int8_t operation;
+  void * compVal;
 };
 
-void initSelection(embedDBOperator* op) {
-    if (op->input == NULL) {
-        EDB_PERRF("ERROR: Projection operator needs an input operator\n");
-        return;
-    }
-
-    // Init input
-    op->input->init(op->input);
-
-    // Init output schema
-    if (op->schema == NULL) {
-        op->schema = copySchema(op->input->schema);
-    }
-
-    // Init output buffer
+static void
+initSelection(embedDBOperator* op)
+{
+  if (op->input == NULL) {
+    EDB_PERRF("ERROR: Projection operator needs an input operator\n");
+    return;
+  }
+  
+  // Init input
+  op->input->init(op->input);
+  
+  // Init output schema
+  if (op->schema == NULL) {
+    op->schema = copySchema(op->input->schema);
+  }
+  
+  // Init output buffer
+  if (op->recordBuffer == NULL) {
+    op->recordBuffer = createBufferFromSchema(op->schema);
     if (op->recordBuffer == NULL) {
-        op->recordBuffer = createBufferFromSchema(op->schema);
-        if (op->recordBuffer == NULL) {
-            EDB_PERRF("ERROR: Failed to allocate buffer for TableScan operator\n");
-            return;
-        }
+      EDB_PERRF("ERROR: Failed to allocate buffer for TableScan operator\n");
+      return;
     }
+  }
 }
 
-int8_t nextSelection(embedDBOperator* op) {
-    embedDBSchema* schema = op->input->schema;
-    struct selectionInfo* state = op->state;
-
-    int8_t colNum = state->colNum;
-    uint16_t colPos = getColOffsetFromSchema(schema, colNum);
-    int8_t operation = state->operation;
-    int8_t colSize = schema->columnSizes[colNum];
-    int8_t isSigned = 0;
-    if (colSize < 0) {
-        colSize = -colSize;
-        isSigned = 1;
+static int8_t
+nextSelection(embedDBOperator* op)
+{
+  embedDBSchema* schema = op->input->schema;
+  struct selectionInfo* state = op->state;
+  
+  int8_t colNum = state->colNum;
+  uint16_t colPos = getColOffsetFromSchema(schema, colNum);
+  int8_t operation = state->operation;
+  int8_t colSize = schema->columnSizes[colNum];
+  int8_t isSigned = 0;
+  if (colSize < 0) {
+    colSize = -colSize;
+    isSigned = 1;
+  }
+  
+  while (op->input->next(op->input)) {
+    void* colData = (int8_t*)op->input->recordBuffer + colPos;
+    if (compare(colData, operation, state->compVal, isSigned, colSize)) {
+      memcpy(op->recordBuffer, op->input->recordBuffer, getRecordSizeFromSchema(op->schema));
+      return 1;
     }
-
-    while (op->input->next(op->input)) {
-        void* colData = (int8_t*)op->input->recordBuffer + colPos;
-        if (compare(colData, operation, state->compVal, isSigned, colSize)) {
-            memcpy(op->recordBuffer, op->input->recordBuffer, getRecordSizeFromSchema(op->schema));
-            return 1;
-        }
-    }
-
-    return 0;
+  }
+  
+  return 0;
 }
 
-void closeSelection(embedDBOperator* op) {
+static void
+closeSelection(embedDBOperator* op)
+{
   op->input->close(op->input);
   
   embedDBFreeSchema(&op->schema);
@@ -481,19 +521,30 @@ createSelectionOperator(embedDBOperator * input,
   return op;
 }
 
+// -------------------------------------------------------------------------
+
+typedef int8_t (*embedDBGroupFunc)(const void* lastRecord, const void* record);
+
 /**
  * @brief	A private struct to hold the state of the aggregate operator
  */
 struct aggregateInfo {
-    int8_t (*groupfunc)(const void* lastRecord, const void* record);  // Function that determins if both records are in the same group
-    embedDBAggregateFunc* functions;                                  // An array of aggregate functions
-    uint32_t functionsLength;                                         // The length of the functions array
-    void* lastRecordBuffer;                                           // Buffer for the last record read by input->next
-    uint16_t bufferSize;                                              // Size of the input buffer (and lastRecordBuffer)
-    int8_t isLastRecordUsable;                                        // Is the data in lastRecordBuffer usable for checking if the recently read record is in the same group? Is set to 0 at start, and also after the last record
+  embedDBGroupFunc       groupfunc;        // Function that determins if both records are in the same group
+  embedDBAggregateFunc * functions;        // An array of aggregate functions
+  uint32_t               functionsLength;  // The length of the functions array
+  void *                 lastRecordBuffer; // Buffer for the last record read by input->next
+  uint16_t               bufferSize;       // Size of the input buffer (and lastRecordBuffer)
+  int8_t                 isLastRecordUsable;  // Is the data in
+					      // lastRecordBuffer
+					      // usable for checking
+					      // if the recently read
+					      // record is in the same
+					      // group? Is set to 0 at
+					      // start, and also after
+					      // the last record
 };
 
-void
+static void
 initAggregate(embedDBOperator * op)
 {
   if (!op->input) {
@@ -551,72 +602,76 @@ initAggregate(embedDBOperator * op)
   }
 }
 
-int8_t nextAggregate(embedDBOperator* op) {
-    struct aggregateInfo* state = op->state;
-    embedDBOperator* input = op->input;
-
-    // Reset each operator
+static int8_t
+nextAggregate(embedDBOperator* op)
+{
+  struct aggregateInfo* state = op->state;
+  embedDBOperator* input = op->input;
+  
+  // Reset each operator
+  for (int i = 0; i < state->functionsLength; i++) {
+    if (state->functions[i].reset != NULL) {
+      state->functions[i].reset(state->functions + i, input->schema);
+    }
+  }
+  
+  int8_t recordsInGroup = 0;
+  
+  // Check flag used to indicate whether the last record read has been added to a group
+  if (state->isLastRecordUsable) {
+    recordsInGroup = 1;
     for (int i = 0; i < state->functionsLength; i++) {
-        if (state->functions[i].reset != NULL) {
-            state->functions[i].reset(state->functions + i, input->schema);
-        }
+      if (state->functions[i].add != NULL) {
+	state->functions[i].add(state->functions + i, input->schema, state->lastRecordBuffer);
+      }
     }
-
-    int8_t recordsInGroup = 0;
-
-    // Check flag used to indicate whether the last record read has been added to a group
-    if (state->isLastRecordUsable) {
-        recordsInGroup = 1;
-        for (int i = 0; i < state->functionsLength; i++) {
-            if (state->functions[i].add != NULL) {
-                state->functions[i].add(state->functions + i, input->schema, state->lastRecordBuffer);
-            }
-        }
+  }
+  
+  int8_t exitType = 0;
+  while (input->next(input)) {
+    // Check if record is in the same group as the last record
+    if (!state->isLastRecordUsable || state->groupfunc(state->lastRecordBuffer, input->recordBuffer)) {
+      recordsInGroup = 1;
+      for (int i = 0; i < state->functionsLength; i++) {
+	if (state->functions[i].add != NULL) {
+	  state->functions[i].add(state->functions + i, input->schema, input->recordBuffer);
+	}
+      }
+    } else {
+      exitType = 1;
+      break;
     }
-
-    int8_t exitType = 0;
-    while (input->next(input)) {
-        // Check if record is in the same group as the last record
-        if (!state->isLastRecordUsable || state->groupfunc(state->lastRecordBuffer, input->recordBuffer)) {
-            recordsInGroup = 1;
-            for (int i = 0; i < state->functionsLength; i++) {
-                if (state->functions[i].add != NULL) {
-                    state->functions[i].add(state->functions + i, input->schema, input->recordBuffer);
-                }
-            }
-        } else {
-            exitType = 1;
-            break;
-        }
-
-        // Save this record
-        memcpy(state->lastRecordBuffer, input->recordBuffer, state->bufferSize);
-        state->isLastRecordUsable = 1;
-    }
-
-    if (!recordsInGroup) {
-        return 0;
-    }
-
-    if (exitType == 0) {
-        // Exited because ran out of records, so all read records have been added to a group
-        state->isLastRecordUsable = 0;
-    }
-
-    // Perform final compute on all functions
-    for (int i = 0; i < state->functionsLength; i++) {
-        if (state->functions[i].compute != NULL) {
-            state->functions[i].compute(state->functions + i, op->schema, op->recordBuffer, state->lastRecordBuffer);
-        }
-    }
-
-    // Put last read record into lastRecordBuffer
+    
+    // Save this record
     memcpy(state->lastRecordBuffer, input->recordBuffer, state->bufferSize);
-
-    return 1;
+    state->isLastRecordUsable = 1;
+  }
+  
+  if (!recordsInGroup) {
+    return 0;
+  }
+  
+  if (exitType == 0) {
+    // Exited because ran out of records, so all read records have been added to a group
+    state->isLastRecordUsable = 0;
+  }
+  
+  // Perform final compute on all functions
+  for (int i = 0; i < state->functionsLength; i++) {
+    if (state->functions[i].compute != NULL) {
+      state->functions[i].compute(state->functions + i, op->schema, op->recordBuffer, state->lastRecordBuffer);
+    }
+  }
+  
+  // Put last read record into lastRecordBuffer
+  memcpy(state->lastRecordBuffer, input->recordBuffer, state->bufferSize);
+  
+  return 1;
 }
 
-void closeAggregate(embedDBOperator* op) {
+static void
+closeAggregate(embedDBOperator* op)
+{
   op->input->close(op->input);
   op->input = NULL;
   embedDBFreeSchema(&op->schema);
@@ -629,8 +684,6 @@ void closeAggregate(embedDBOperator* op) {
     op->recordBuffer = NULL;
   }
 }
-
-typedef int8_t (*embedDBGroupFunc)(const void* lastRecord, const void* record);
 
 /**
  * @brief Creates an operator that will find groups and preform aggregate functions over each group.
@@ -686,12 +739,15 @@ createAggregateOperator(embedDBOperator *      input,
   return op;
 }
 
+// -------------------------------------------------------------------------
+
 struct keyJoinInfo {
-    embedDBOperator* input2;
-    int8_t firstCall;
+  embedDBOperator * input2;
+  int8_t            firstCall;
 };
 
-void initKeyJoin(embedDBOperator * op)
+static void
+initKeyJoin(embedDBOperator * op)
 {
   struct keyJoinInfo* state = op->state;
   embedDBOperator* input1 = op->input;
@@ -745,67 +801,79 @@ void initKeyJoin(embedDBOperator * op)
   }
 }
 
-int8_t nextKeyJoin(embedDBOperator* op) {
-    struct keyJoinInfo* state = op->state;
-    embedDBOperator* input1 = op->input;
-    embedDBOperator* input2 = state->input2;
-    embedDBSchema* schema1 = input1->schema;
-    embedDBSchema* schema2 = input2->schema;
+static int8_t
+nextKeyJoin(embedDBOperator* op)
+{
+  struct keyJoinInfo * state   = op->state;
+  embedDBOperator *    input1  = op->input;
+  embedDBOperator *    input2  = state->input2;
+  embedDBSchema *      schema1 = input1->schema;
+  embedDBSchema *      schema2 = input2->schema;
 
-    // We've already used this match
-    void* record1 = input1->recordBuffer;
-    void* record2 = input2->recordBuffer;
-
-    int8_t colSize = abs(schema1->columnSizes[0]);
-
-    if (state->firstCall) {
-        state->firstCall = 0;
-
-        if (!input1->next(input1) || !input2->next(input2)) {
-            // If this case happens, you goofed, but I'll handle it anyway
-            return 0;
-        }
-        goto check;
+  // We've already used this match
+  void * record1 = input1->recordBuffer;
+  void * record2 = input2->recordBuffer;
+  
+  int8_t colSize = abs(schema1->columnSizes[0]);
+  
+  if (state->firstCall) {
+    state->firstCall = 0;
+    
+    if (!input1->next(input1) || !input2->next(input2)) {
+      // If this case happens, you goofed, but I'll handle it anyway
+      return 0;
     }
-
-    while (1) {
-        // Advance the input with the smaller value
-        int8_t comp = compareUnsignedNumbers(record1, record2, colSize);
-        if (comp == 0) {
-            // Move both forward because if they match at this point, they've already been matched
-            if (!input1->next(input1) || !input2->next(input2)) {
-                return 0;
-            }
-        } else if (comp < 0) {
-            // Move record 1 forward
-            if (!input1->next(input1)) {
-                // We are out of records on one side. Given the assumption that the inputs are sorted, there are no more possible joins
-                return 0;
-            }
-        } else {
-            // Move record 2 forward
-            if (!input2->next(input2)) {
-                // We are out of records on one side. Given the assumption that the inputs are sorted, there are no more possible joins
-                return 0;
-            }
-        }
-
-    check:
-        // See if these records join
-        if (compareUnsignedNumbers(record1, record2, colSize) == 0) {
-            // Copy both records into the output
-            uint16_t record1Size = getRecordSizeFromSchema(schema1);
-            memcpy(op->recordBuffer, input1->recordBuffer, record1Size);
-            memcpy((int8_t*)op->recordBuffer + record1Size, input2->recordBuffer, getRecordSizeFromSchema(schema2));
-            return 1;
-        }
-        // Else keep advancing inputs until a match is found
+    goto check;
+  }
+  
+  while (1) {
+    // Advance the input with the smaller value
+    int8_t comp = compareUnsignedNumbers(record1, record2, colSize);
+    if (comp == 0) {
+      // Move both forward because if they match at this point,
+      // they've already been matched
+      if (!input1->next(input1) || !input2->next(input2)) {
+	return 0;
+      }
     }
-
-    return 0;
+    else if (comp < 0) {
+      // Move record 1 forward
+      if (!input1->next(input1)) {
+	// We are out of records on one side. Given the assumption
+	// that the inputs are sorted, there are no more possible
+	// joins
+	return 0;
+      }
+    }
+    else {
+      // Move record 2 forward
+      if (!input2->next(input2)) {
+	// We are out of records on one side. Given the assumption
+	// that the inputs are sorted, there are no more possible
+	// joins
+	return 0;
+      }
+    }
+    
+  check:
+    // See if these records join
+    if (compareUnsignedNumbers(record1, record2, colSize) == 0) {
+      // Copy both records into the output
+      uint16_t record1Size = getRecordSizeFromSchema(schema1);
+      memcpy(op->recordBuffer, input1->recordBuffer, record1Size);
+      memcpy((int8_t*)op->recordBuffer + record1Size,
+	     input2->recordBuffer, getRecordSizeFromSchema(schema2));
+      return 1;
+    }
+    // Else keep advancing inputs until a match is found
+  }
+  
+  return 0;
 }
 
-void closeKeyJoin(embedDBOperator* op) {
+static void
+closeKeyJoin(embedDBOperator* op)
+{
   struct keyJoinInfo* state = op->state;
   embedDBOperator* input1 = op->input;
   embedDBOperator* input2 = state->input2;
@@ -858,17 +926,32 @@ createKeyJoinOperator(embedDBOperator * input1,
   return op;
 }
 
-void countReset(embedDBAggregateFunc* aggFunc, embedDBSchema* inputSchema) {
-    *(uint32_t*)aggFunc->state = 0;
+// -------------------------------------------------------------------------
+
+static void
+countReset(embedDBAggregateFunc * aggFunc,
+	   embedDBSchema *        inputSchema)
+{
+  *(uint32_t*)aggFunc->state = 0;
 }
 
-void countAdd(embedDBAggregateFunc* aggFunc, embedDBSchema* inputSchema, const void* recordBuffer) {
-    (*(uint32_t*)aggFunc->state)++;
+static void
+countAdd(embedDBAggregateFunc * aggFunc,
+	 embedDBSchema *        inputSchema,
+	 const void *           recordBuffer)
+{
+  (*(uint32_t*)aggFunc->state)++;
 }
 
-void countCompute(embedDBAggregateFunc* aggFunc, embedDBSchema* outputSchema, void* recordBuffer, const void* lastRecord) {
-    // Put count in record
-    memcpy((int8_t*)recordBuffer + getColOffsetFromSchema(outputSchema, aggFunc->colNum), aggFunc->state, sizeof(uint32_t));
+static void
+countCompute(embedDBAggregateFunc * aggFunc,
+	     embedDBSchema *        outputSchema,
+	     void *                 recordBuffer,
+	     const void *           lastRecord)
+{
+  // Put count in record
+  memcpy((int8_t*)recordBuffer + getColOffsetFromSchema(outputSchema, aggFunc->colNum),
+	 aggFunc->state, sizeof(uint32_t));
 }
 
 /**
@@ -892,39 +975,57 @@ createCountAggregate(void) {
   return aggFunc;
 }
 
-void sumReset(embedDBAggregateFunc* aggFunc, embedDBSchema* inputSchema) {
-    if (abs(inputSchema->columnSizes[*((uint8_t*)aggFunc->state + sizeof(int64_t))]) > 8) {
-        EDB_PERRF("WARNING: Can't use this sum function for columns bigger than 8 bytes\n");
-    }
-    *(int64_t*)aggFunc->state = 0;
+// -------------------------------------------------------------------------
+
+static void
+sumReset(embedDBAggregateFunc * aggFunc,
+	 embedDBSchema *        inputSchema)
+{
+  if (abs(inputSchema->columnSizes[*((uint8_t*)aggFunc->state + sizeof(int64_t))]) > 8) {
+    EDB_PERRF("WARNING: Can't use this sum function for columns bigger than 8 bytes.\n");
+  }
+  *(int64_t*)aggFunc->state = 0;
 }
 
-void sumAdd(embedDBAggregateFunc* aggFunc, embedDBSchema* inputSchema, const void* recordBuffer) {
-    uint8_t colNum = *((uint8_t*)aggFunc->state + sizeof(int64_t));
-    int8_t colSize = inputSchema->columnSizes[colNum];
-    int8_t isSigned = embedDB_IS_COL_SIGNED(colSize);
-    colSize = min(abs(colSize), sizeof(int64_t));
-    void* colPos = (int8_t*)recordBuffer + getColOffsetFromSchema(inputSchema, colNum);
-    if (isSigned) {
-        // Get val to sum from record
-        int64_t val = 0;
-        memcpy(&val, colPos, colSize);
-        // Extend two's complement sign to fill 64 bit number if val is negative
-        int64_t sign = val & (128 << ((colSize - 1) * 8));
-        if (sign != 0) {
-            memset(((int8_t*)(&val)) + colSize, 0xff, sizeof(int64_t) - colSize);
-        }
-        (*(int64_t*)aggFunc->state) += val;
-    } else {
-        uint64_t val = 0;
-        memcpy(&val, colPos, colSize);
-        (*(uint64_t*)aggFunc->state) += val;
+static void
+sumAdd(embedDBAggregateFunc * aggFunc,
+       embedDBSchema *        inputSchema,
+       const void *           recordBuffer)
+{
+  uint8_t colNum   = *((uint8_t*)aggFunc->state + sizeof(int64_t));
+  int8_t  colSize  = inputSchema->columnSizes[colNum];
+  int8_t  isSigned = embedDB_IS_COL_SIGNED(colSize);
+  void*   colPos   = (int8_t*)recordBuffer + getColOffsetFromSchema(inputSchema, colNum);
+
+  colSize = min(abs(colSize), sizeof(int64_t));
+  
+  if (isSigned) {
+    // Get val to sum from record
+    int64_t val = 0;
+    memcpy(&val, colPos, colSize);
+    // Extend two's complement sign to fill 64 bit number if val is negative
+    int64_t sign = val & (128 << ((colSize - 1) * 8));
+    if (sign != 0) {
+      memset(((int8_t*)(&val)) + colSize, 0xff, sizeof(int64_t) - colSize);
     }
+    (*(int64_t*)aggFunc->state) += val;
+  }
+  else {
+    uint64_t val = 0;
+    memcpy(&val, colPos, colSize);
+    (*(uint64_t*)aggFunc->state) += val;
+  }
 }
 
-void sumCompute(embedDBAggregateFunc* aggFunc, embedDBSchema* outputSchema, void* recordBuffer, const void* lastRecord) {
-    // Put count in record
-    memcpy((int8_t*)recordBuffer + getColOffsetFromSchema(outputSchema, aggFunc->colNum), aggFunc->state, sizeof(int64_t));
+static void
+sumCompute(embedDBAggregateFunc * aggFunc,
+	   embedDBSchema *        outputSchema,
+	   void *                 recordBuffer,
+	   const void *           lastRecord)
+{
+  // Put count in record
+  memcpy((int8_t*)recordBuffer + getColOffsetFromSchema(outputSchema, aggFunc->colNum),
+	 aggFunc->state, sizeof(int64_t));
 }
 
 /**
@@ -953,40 +1054,57 @@ createSumAggregate(uint8_t colNum)
   return aggFunc;
 }
 
+// -------------------------------------------------------------------------
+
 struct minMaxState {
-    uint8_t colNum;  // Which column of input to use
-    void* current;   // The value currently regarded as the min/max
+    uint8_t colNum;   // Which column of input to use
+    void *  current;  // The value currently regarded as the min/max
 };
 
-void minReset(embedDBAggregateFunc* aggFunc, embedDBSchema* inputSchema) {
-    struct minMaxState* state = aggFunc->state;
-    int8_t colSize = inputSchema->columnSizes[state->colNum];
-    if (aggFunc->colSize != colSize) {
-        EDB_PERRF("WARNING: Your provided column size for min aggregate function doesn't match the column size in the input schema\n");
-    }
-    int8_t isSigned = embedDB_IS_COL_SIGNED(colSize);
-    colSize = abs(colSize);
-    memset(state->current, 0xff, colSize);
-    if (isSigned) {
-        // If the number is signed, flip MSB else it will read as -1, not MAX_INT
-        memset((int8_t*)state->current + colSize - 1, 0x7f, 1);
-    }
+static void
+minReset(embedDBAggregateFunc * aggFunc,
+	 embedDBSchema *        inputSchema)
+{
+  struct minMaxState * state   = aggFunc->state;
+  int8_t               colSize = inputSchema->columnSizes[state->colNum];
+  if (aggFunc->colSize != colSize) {
+    EDB_PERRF("WARNING: Your provided column size for min aggregate function "
+	      "doesn't match the column size in the input schema\n");
+  }
+  int8_t isSigned = embedDB_IS_COL_SIGNED(colSize);
+  colSize = abs(colSize);
+  memset(state->current, 0xff, colSize);
+  if (isSigned) {
+    // If the number is signed, flip MSB else it will read as -1, not MAX_INT
+    memset((int8_t*)state->current + colSize - 1, 0x7f, 1);
+  }
 }
 
-void minAdd(embedDBAggregateFunc* aggFunc, embedDBSchema* inputSchema, const void* record) {
-    struct minMaxState* state = aggFunc->state;
-    int8_t colSize = inputSchema->columnSizes[state->colNum];
-    int8_t isSigned = embedDB_IS_COL_SIGNED(colSize);
-    colSize = abs(colSize);
-    void* newValue = (int8_t*)record + getColOffsetFromSchema(inputSchema, state->colNum);
-    if (compare(newValue, SELECT_LT, state->current, isSigned, colSize)) {
-        memcpy(state->current, newValue, colSize);
-    }
+static void
+minAdd(embedDBAggregateFunc * aggFunc,
+       embedDBSchema *        inputSchema,
+       const void *           record)
+{
+  struct minMaxState * state    = aggFunc->state;
+  int8_t               colSize  = inputSchema->columnSizes[state->colNum];
+  int8_t               isSigned = embedDB_IS_COL_SIGNED(colSize);
+  void*                newValue = (int8_t*)record + getColOffsetFromSchema(inputSchema, state->colNum);
+  colSize = abs(colSize);
+  if (compare(newValue, SELECT_LT, state->current, isSigned, colSize)) {
+    memcpy(state->current, newValue, colSize);
+  }
 }
 
-void minMaxCompute(embedDBAggregateFunc* aggFunc, embedDBSchema* outputSchema, void* recordBuffer, const void* lastRecord) {
-    // Put count in record
-    memcpy((int8_t*)recordBuffer + getColOffsetFromSchema(outputSchema, aggFunc->colNum), ((struct minMaxState*)aggFunc->state)->current, abs(outputSchema->columnSizes[aggFunc->colNum]));
+static void
+minMaxCompute(embedDBAggregateFunc * aggFunc,
+	      embedDBSchema *        outputSchema,
+	      void *                 recordBuffer,
+	      const void *           lastRecord)
+{
+  // Put count in record
+  memcpy((int8_t*)recordBuffer + getColOffsetFromSchema(outputSchema, aggFunc->colNum),
+	 ((struct minMaxState*)aggFunc->state)->current,
+	 abs(outputSchema->columnSizes[aggFunc->colNum]));
 }
 
 /**
@@ -1037,30 +1155,41 @@ createMinAggregate(uint8_t colNum,
   return aggFunc;
 }
 
-void maxReset(embedDBAggregateFunc* aggFunc, embedDBSchema* inputSchema) {
-    struct minMaxState* state = aggFunc->state;
-    int8_t colSize = inputSchema->columnSizes[state->colNum];
-    if (aggFunc->colSize != colSize) {
-        EDB_PERRF("WARNING: Your provided column size for max aggregate function doesn't match the column size in the input schema\n");
-    }
-    int8_t isSigned = embedDB_IS_COL_SIGNED(colSize);
-    colSize = abs(colSize);
-    memset(state->current, 0, colSize);
-    if (isSigned) {
-        // If the number is signed, flip MSB else it will read as 0, not MIN_INT
-        memset((int8_t*)state->current + colSize - 1, 0x80, 1);
-    }
+// -------------------------------------------------------------------------
+
+static void
+maxReset(embedDBAggregateFunc * aggFunc,
+	 embedDBSchema *        inputSchema)
+{
+  struct minMaxState * state = aggFunc->state;
+  int8_t colSize = inputSchema->columnSizes[state->colNum];
+  if (aggFunc->colSize != colSize) {
+    EDB_PERRF("WARNING: Your provided column size for max aggregate function doesn't match the column size in the input schema\n");
+  }
+  int8_t isSigned = embedDB_IS_COL_SIGNED(colSize);
+  colSize = abs(colSize);
+  memset(state->current, 0, colSize);
+  if (isSigned) {
+    // If the number is signed, flip MSB else it will read as 0, not MIN_INT
+    memset((int8_t*)state->current + colSize - 1, 0x80, 1);
+  }
 }
 
-void maxAdd(embedDBAggregateFunc* aggFunc, embedDBSchema* inputSchema, const void* record) {
-    struct minMaxState* state = aggFunc->state;
-    int8_t colSize = inputSchema->columnSizes[state->colNum];
-    int8_t isSigned = embedDB_IS_COL_SIGNED(colSize);
-    colSize = abs(colSize);
-    void* newValue = (int8_t*)record + getColOffsetFromSchema(inputSchema, state->colNum);
-    if (compare(newValue, SELECT_GT, state->current, isSigned, colSize)) {
-        memcpy(state->current, newValue, colSize);
-    }
+static void
+maxAdd(embedDBAggregateFunc * aggFunc,
+       embedDBSchema *        inputSchema,
+       const void *           record)
+{
+  struct minMaxState * state    = aggFunc->state;
+  int8_t               colSize  = inputSchema->columnSizes[state->colNum];
+  int8_t               isSigned = embedDB_IS_COL_SIGNED(colSize);
+  void *               newValue = (int8_t*)record + getColOffsetFromSchema(inputSchema, state->colNum);
+
+  colSize = abs(colSize);
+  
+  if (compare(newValue, SELECT_GT, state->current, isSigned, colSize)) {
+    memcpy(state->current, newValue, colSize);
+  }
 }
 
 /**
@@ -1098,10 +1227,10 @@ createMaxAggregate(uint8_t colNum,
 	  aggFunc = NULL;
 	}
 	else {
-	  aggFunc->state = state;
+	  aggFunc->state   = state;
 	  aggFunc->colSize = colSize;
-	  aggFunc->reset = maxReset;
-	  aggFunc->add = maxAdd;
+	  aggFunc->reset   = maxReset;
+	  aggFunc->add     = maxAdd;
 	  aggFunc->compute = minMaxCompute;
 	}
       }
@@ -1111,68 +1240,89 @@ createMaxAggregate(uint8_t colNum,
   return aggFunc;
 }
 
+// -------------------------------------------------------------------------
+
 struct avgState {
-    uint8_t colNum;   // Column to take avg of
-    int8_t isSigned;  // Is input column signed?
-    uint32_t count;   // Count of records seen in group so far
-    int64_t sum;      // Sum of records seen in group so far
+  uint32_t count    : 23; // Count of records seen in group so far
+  uint32_t isSigned :  1; // Is input column signed?
+  uint32_t colNum   :  8; // Column to take avg of
+  int64_t  sum;           // Sum of records seen in group so far
 };
 
-void avgReset(struct embedDBAggregateFunc* aggFunc, embedDBSchema* inputSchema) {
-    struct avgState* state = aggFunc->state;
-    if (abs(inputSchema->columnSizes[state->colNum]) > 8) {
-        EDB_PERRF("WARNING: Can't use this sum function for columns bigger than 8 bytes\n");
-    }
-    state->count = 0;
-    state->sum = 0;
-    state->isSigned = embedDB_IS_COL_SIGNED(inputSchema->columnSizes[state->colNum]);
+static void
+avgReset(struct embedDBAggregateFunc * aggFunc,
+	 embedDBSchema *               inputSchema)
+{
+  struct avgState * state = aggFunc->state;
+  if (abs(inputSchema->columnSizes[state->colNum]) > 8) {
+    EDB_PERRF("WARNING: Can't use this sum function for columns bigger than 8 bytes.\n");
+  }
+  state->count    = 0;
+  state->sum      = 0;
+  state->isSigned = embedDB_IS_COL_SIGNED(inputSchema->columnSizes[state->colNum]);
 }
 
-void avgAdd(struct embedDBAggregateFunc* aggFunc, embedDBSchema* inputSchema, const void* record) {
-    struct avgState* state = aggFunc->state;
-    uint8_t colNum = state->colNum;
-    int8_t colSize = inputSchema->columnSizes[colNum];
-    int8_t isSigned = embedDB_IS_COL_SIGNED(colSize);
-    colSize = min(abs(colSize), sizeof(int64_t));
-    void* colPos = (int8_t*)record + getColOffsetFromSchema(inputSchema, colNum);
-    if (isSigned) {
-        // Get val to sum from record
-        int64_t val = 0;
-        memcpy(&val, colPos, colSize);
-        // Extend two's complement sign to fill 64 bit number if val is negative
-        int64_t sign = val & (128 << ((colSize - 1) * 8));
-        if (sign != 0) {
-            memset(((int8_t*)(&val)) + colSize, 0xff, sizeof(int64_t) - colSize);
-        }
-        state->sum += val;
-    } else {
-        uint64_t val = 0;
-        memcpy(&val, colPos, colSize);
-        val += (uint64_t)state->sum;
-        memcpy(&state->sum, &val, sizeof(uint64_t));
+static void
+avgAdd(struct embedDBAggregateFunc * aggFunc,
+       embedDBSchema *               inputSchema,
+       const void *                  record)
+{
+  struct avgState * state    = aggFunc->state;
+  uint8_t           colNum   = state->colNum;
+  int8_t            colSize  = inputSchema->columnSizes[colNum];
+  int8_t            isSigned = embedDB_IS_COL_SIGNED(colSize);
+  void *            colPos   = (int8_t*)record + getColOffsetFromSchema(inputSchema, colNum);
+
+  colSize = min(abs(colSize), sizeof(int64_t));
+  
+  if (isSigned) {
+    // Get val to sum from record
+    int64_t val = 0;
+    memcpy(&val, colPos, colSize);
+    // Extend two's complement sign to fill 64 bit number if val is negative
+    int64_t sign = val & (128 << ((colSize - 1) * 8));
+    if (sign != 0) {
+      memset(((int8_t*)(&val)) + colSize, 0xff, sizeof(int64_t) - colSize);
     }
-    state->count++;
+    state->sum += val;
+  }
+  else {
+    uint64_t val = 0;
+    memcpy(&val, colPos, colSize);
+    val += (uint64_t)state->sum;
+    memcpy(&state->sum, &val, sizeof(uint64_t));
+  }
+  state->count++;
 }
 
-void avgCompute(struct embedDBAggregateFunc* aggFunc, embedDBSchema* outputSchema, void* recordBuffer, const void* lastRecord) {
-    struct avgState* state = aggFunc->state;
-    if (aggFunc->colSize == 8) {
-        double avg = state->sum / (double)state->count;
-        if (state->isSigned) {
-            avg = state->sum / (double)state->count;
-        } else {
-            avg = (uint64_t)state->sum / (double)state->count;
-        }
-        memcpy((int8_t*)recordBuffer + getColOffsetFromSchema(outputSchema, aggFunc->colNum), &avg, sizeof(double));
-    } else {
-        float avg;
-        if (state->isSigned) {
-            avg = state->sum / (float)state->count;
-        } else {
-            avg = (uint64_t)state->sum / (float)state->count;
-        }
-        memcpy((int8_t*)recordBuffer + getColOffsetFromSchema(outputSchema, aggFunc->colNum), &avg, sizeof(float));
+static void
+avgCompute(struct embedDBAggregateFunc * aggFunc,
+	   embedDBSchema *               outputSchema,
+	   void *                        recordBuffer,
+	   const void *                  lastRecord)
+{
+  struct avgState * state = aggFunc->state;
+  if (aggFunc->colSize == 8) {
+    double avg = state->sum / (double)state->count;
+    if (state->isSigned) {
+      avg = state->sum / (double)state->count;
     }
+    else {
+      avg = (uint64_t)state->sum / (double)state->count;
+    }
+    memcpy((int8_t*)recordBuffer + getColOffsetFromSchema(outputSchema, aggFunc->colNum),
+	   &avg, sizeof(double));
+  }
+  else {
+    float avg;
+    if (state->isSigned) {
+      avg = state->sum / (float)state->count;
+    } else {
+      avg = (uint64_t)state->sum / (float)state->count;
+    }
+    memcpy((int8_t*)recordBuffer + getColOffsetFromSchema(outputSchema, aggFunc->colNum),
+	   &avg, sizeof(float));
+  }
 }
 
 /**

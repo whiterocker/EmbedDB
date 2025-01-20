@@ -171,7 +171,7 @@ void embedDB_variable_data_page_numbers_are_correct() {
     void *buffer = (int8_t *)state->buffer + state->pageSize * EMBEDDB_VAR_READ_BUFFER(state->parameters);
     for (uint32_t i = 0; i < numberOfPagesExpected - 1; i++) {
         readVariablePage(state, i);
-        memcpy(&pageNumber, buffer, sizeof(id_t));
+        memcpy(&pageNumber, buffer, sizeof(pgid_t));
         TEST_ASSERT_EQUAL_UINT32_MESSAGE(i, pageNumber, "EmbedDB variable data did not have the correct page number.");
     }
     tearDownEmbedDB();

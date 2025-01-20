@@ -66,9 +66,6 @@ extern "C" {
 
 #include "../spline/spline.h"
 
-/* Define type for page ids (physical and logical). */
-typedef uint32_t id_t;
-
 /* Define type for page record count. */
 typedef uint16_t count_t;
 
@@ -167,10 +164,11 @@ typedef uint16_t count_t;
 typedef struct {
     /**
      * @brief	Reads a single page into the buffer
-     * @param	buffer		Pre-allocated space where data is read into
-     * @param	pageNum		Page number to read. Is treated as an offset from the beginning of the file
-     * @param	pageSize	Number of bytes in a page
-     * @param	file		The file to read from. This is the file data that was stored in embedDBState->dataFile etc
+     * @param	buffer   Pre-allocated space where data is read into
+     * @param	pageNum	 Page number to read. Is treated as an offset from the beginning of the file
+     * @param	pageSize Number of bytes in a page     
+     * @param   file     The file to read from. This is the file data that
+     *                   was stored in embedDBState->dataFile etc     
      * @return	1 for success and 0 for failure
      */
     int8_t (*read)(void *buffer, uint32_t pageNum, uint32_t pageSize, void *file);
@@ -192,7 +190,7 @@ typedef struct {
      * @param	file		The file data that was stored in embedDBState->dataFile etc
      * @return	1 for success and 0 for failure
      */
-    int8_t (*erase)(id_t startPage, id_t endPage, uint32_t pageSize, void *file);
+    int8_t (*erase)(pgid_t startPage, pgid_t endPage, uint32_t pageSize, void *file);
 
     /**
      * @brief	Closes the file
@@ -230,12 +228,12 @@ typedef struct {
     uint32_t minDataPageId;                                               /* Lowest logical data page id that is saved on file */
     uint32_t minIndexPageId;                                              /* Lowest logical index page id that is saved on file */
     uint64_t minVarRecordId;                                              /* Minimum record id that we still have variable data for */
-    id_t nextDataPageId;                                                  /* Next logical page id. Page id is an incrementing value and may not always be same as physical page id. */
-    id_t nextIdxPageId;                                                   /* Next logical page id for index. Page id is an incrementing value and may not always be same as physical page id. */
-    id_t nextVarPageId;                                                   /* Page number of next var page to be written */
+    pgid_t nextDataPageId;                                                  /* Next logical page id. Page id is an incrementing value and may not always be same as physical page id. */
+    pgid_t nextIdxPageId;                                                   /* Next logical page id for index. Page id is an incrementing value and may not always be same as physical page id. */
+    pgid_t nextVarPageId;                                                   /* Page number of next var page to be written */
     uint32_t nextRLCPhysicalPageLocation;                                 /* Physical page number for the location for the next record-level-consistency page */
     uint32_t rlcPhysicalStartingPage;                                     /* Physical page number for the starting page of the record-level consistnecy pages */
-    id_t currentVarLoc;                                                   /* Current variable address offset to write at (bytes from beginning of file) */
+    pgid_t currentVarLoc;                                                   /* Current variable address offset to write at (bytes from beginning of file) */
     void *buffer;                                                         /* Pre-allocated memory buffer for use by algorithm */
     spline *spl;                                                          /* Spline model */
     uint32_t numSplinePoints;                                             /* Number of spline points to allocate */
@@ -259,14 +257,14 @@ typedef struct {
     int8_t (*inBitmap)(void *data, void *bm);                             /* Returns 1 if data (key) value is a valid value given the bitmap */
     uint64_t maxKey;                                                      /* Maximum key */
     int32_t maxError;                                                     /* Maximum key error */
-    id_t numWrites;                                                       /* Number of page writes */
-    id_t numReads;                                                        /* Number of page reads */
-    id_t numIdxWrites;                                                    /* Number of index page writes */
-    id_t numIdxReads;                                                     /* Number of index page reads */
-    id_t bufferHits;                                                      /* Number of pages returned from buffer rather than storage */
-    id_t bufferedPageId;                                                  /* Page id currently in read buffer */
-    id_t bufferedIndexPageId;                                             /* Index page id currently in index read buffer */
-    id_t bufferedVarPage;                                                 /* Variable page id currently in variable read buffer */
+    pgid_t numWrites;                                                       /* Number of page writes */
+    pgid_t numReads;                                                        /* Number of page reads */
+    pgid_t numIdxWrites;                                                    /* Number of index page writes */
+    pgid_t numIdxReads;                                                     /* Number of index page reads */
+    pgid_t bufferHits;                                                      /* Number of pages returned from buffer rather than storage */
+    pgid_t bufferedPageId;                                                  /* Page id currently in read buffer */
+    pgid_t bufferedIndexPageId;                                             /* Index page id currently in index read buffer */
+    pgid_t bufferedVarPage;                                                 /* Variable page id currently in variable read buffer */
     uint8_t recordHasVarData;                                             /* Internal flag to signal that the record currently being written has var data */
 } embedDBState;
 
@@ -422,7 +420,7 @@ int8_t embedDBFlushVar(embedDBState *state);
  * @param	pageNum	Page number to read
  * @return	Return 0 if success, -1 if error.
  */
-int8_t readPage(embedDBState *state, id_t pageNum);
+int8_t readPage(embedDBState *state, pgid_t pageNum);
 
 /**
  * @brief	Reads given index page from storage.
@@ -430,7 +428,7 @@ int8_t readPage(embedDBState *state, id_t pageNum);
  * @param	pageNum	Page number to read
  * @return	Return 0 if success, -1 if error.
  */
-int8_t readIndexPage(embedDBState *state, id_t pageNum);
+int8_t readIndexPage(embedDBState *state, pgid_t pageNum);
 
 /**
  * @brief	Reads given variable data page from storage
@@ -438,7 +436,7 @@ int8_t readIndexPage(embedDBState *state, id_t pageNum);
  * @param 	pageNum Page number to read
  * @return 	Return 0 if success, -1 if error
  */
-int8_t readVariablePage(embedDBState *state, id_t pageNum);
+int8_t readVariablePage(embedDBState *state, pgid_t pageNum);
 
 /**
  * @brief	Writes page in buffer to storage. Returns page number.
@@ -446,7 +444,7 @@ int8_t readVariablePage(embedDBState *state, id_t pageNum);
  * @param	pageNum	Page number to read
  * @return	Return page number if success, -1 if error.
  */
-id_t writePage(embedDBState *state, void *buffer);
+pgid_t writePage(embedDBState *state, void *buffer);
 
 /**
  * @brief	Writes index page in buffer to storage. Returns page number.
@@ -454,7 +452,7 @@ id_t writePage(embedDBState *state, void *buffer);
  * @param	pageNum	Page number to read
  * @return	Return page number if success, -1 if error.
  */
-id_t writeIndexPage(embedDBState *state, void *buffer);
+pgid_t writeIndexPage(embedDBState *state, void *buffer);
 
 /**
  * @brief	Writes variable data page in buffer to storage. Returns page number.
@@ -462,7 +460,7 @@ id_t writeIndexPage(embedDBState *state, void *buffer);
  * @param	pageNum	Page number to read
  * @return	Return page number if success, -1 if error.
  */
-id_t writeVariablePage(embedDBState *state, void *buffer);
+pgid_t writeVariablePage(embedDBState *state, void *buffer);
 
 /**
  * @brief   Writes a temporary page when using record-levek-consistency to storage.

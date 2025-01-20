@@ -304,7 +304,7 @@ int runalltests_embedDB() {
                     void *buf = (infileBuffer + headerSize + j * state->recordSize);
 
                     // printf("Key: %lu, Data: %lu, Page num: %lu, i: %lu\n",
-                    // *(id_t*)buf, *(id_t*)(buf + 4), i/31, i);
+                    // *(pgid_t*)buf, *(pgid_t*)(buf + 4), i/31, i);
                     embedDBPut(state, buf, (void *)((int8_t *)buf + 4));
                     // if ( i < 100000)
                     //   printf("%lu %d %d %d\n", *((uint32_t*) buf),
