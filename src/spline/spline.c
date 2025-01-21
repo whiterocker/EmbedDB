@@ -170,7 +170,7 @@ splineAdd(spline * spl,
   lowerYDiff -= lastPage;
   
   if (spl->count >= spl->size) {
-    int8_t eraseResult = splineErase(spl, spl->eraseSize);
+    (void) splineErase(spl, spl->eraseSize);
   }
   
   /* Check if next point still in error corridor */
@@ -193,7 +193,7 @@ splineAdd(spline * spl,
     
     /* If we add a point, we might need to erase again */
     if (spl->count >= spl->size) {
-      int8_t eraseResult = splineErase(spl, spl->eraseSize);
+      (void) splineErase(spl, spl->eraseSize);
     }
     
   }

@@ -1493,15 +1493,18 @@ binarySearch(embedDBState * state,
 	     void *         buffer,
 	     void *         key)
 {
+  int8_t retval = -1;
   uint32_t first = state->minDataPageId, last = state->nextDataPageId - 1;
   uint32_t pageId = (first + last) / 2;
   while (1) {
     /* Read page into buffer */
-    if (readPage(state, pageId % state->numDataPages) != 0)
-      return -1;
-    
-    if (first >= last)
+    if (readPage(state, pageId % state->numDataPages) != 0) {
       break;
+    }
+    
+    if (first >= last) {
+      break;
+    }
     
     if (state->compareKey(key, embedDBGetMinKey(state, buffer)) < 0) {
       /* Key is less than smallest record in block. */
@@ -1513,9 +1516,12 @@ binarySearch(embedDBState * state,
       pageId = (first + last) / 2;
     } else {
       /* Found correct block */
-      return 0;
+      retval = 0;
+      break;
     }
   }
+
+  return retval;
 }
 
 static int8_t
@@ -1613,7 +1619,6 @@ embedDBGet(embedDBState * state,
   memcpy(&thisKey, key, state->keySize);
   
   void *buf = (int8_t *)state->buffer + state->pageSize;
-  int16_t numReads = 0;
   
   // if write buffer is not empty
   if ((EMBEDDB_GET_COUNT(outputBuffer) != 0)) {
@@ -2427,7 +2432,7 @@ writeVariablePage(embedDBState * state,
  * @brief	Memcopies write buffer to the read buffer.
  * @param	state	embedDB algorithm state structure
  */
-void
+static void
 readToWriteBuf(embedDBState * state)
 {
   // point to read buffer
@@ -2442,7 +2447,7 @@ readToWriteBuf(embedDBState * state)
  * @brief	Memcopies variable write buffer to the read buffer.
  * @param	state	embedDB algorithm state structure
  */
-void
+static void
 readToWriteBufVar(embedDBState *state)
 {
   // point to read buffer

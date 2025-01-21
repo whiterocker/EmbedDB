@@ -42,18 +42,19 @@ extern "C" {
 
 #include <inttypes.h>
 #include <math.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 
 #if !defined(EDB_PRINTF)
 #include <stdio.h>
-#define EDB_PRINTF(fmt, ...) printf(fmt __VA_OPT__(,) __VA_ARGS__)
+#define EDB_PRINTF(...) printf(__VA_ARGS__)
 #endif
 
 #if !defined(EDB_PERRF)
 #ifdef PRINT_ERRORS
 #include <stdio.h>
-#define EDB_PERRF(fmt, ...) printf(fmt __VA_OPT__(,) __VA_ARGS__)
+#define EDB_PERRF(...) printf(__VA_ARGS__)
 #else
 #define EDB_PERRF(...) 
 #endif
@@ -162,55 +163,55 @@ typedef uint16_t count_t;
  * @brief	An interface for embedDB to read/write to any storage medium at the page level of granularity
  */
 typedef struct {
-    /**
-     * @brief	Reads a single page into the buffer
-     * @param	buffer   Pre-allocated space where data is read into
-     * @param	pageNum	 Page number to read. Is treated as an offset from the beginning of the file
-     * @param	pageSize Number of bytes in a page     
-     * @param   file     The file to read from. This is the file data that
-     *                   was stored in embedDBState->dataFile etc     
-     * @return	1 for success and 0 for failure
-     */
-    int8_t (*read)(void *buffer, uint32_t pageNum, uint32_t pageSize, void *file);
+  /**
+   * @brief	Reads a single page into the buffer
+   * @param	buffer   Pre-allocated space where data is read into
+   * @param	pageNum	 Page number to read. Is treated as an offset from the beginning of the file
+   * @param	pageSize Number of bytes in a page     
+   * @param     file     The file to read from. This is the file data that
+   *                     was stored in embedDBState->dataFile etc     
+   * @return	true on success
+   */
+  bool (*read)(void *buffer, uint32_t pageNum, uint32_t pageSize, void *file);
 
-    /**
-     * @brief	Writes a single page to file
-     * @param	buffer		The data to write to file
-     * @param	pageNum		Page number to write. Is treated as an offset from the beginning of the file
-     * @param	pageSize	Number of bytes in a page
-     * @param	file		The file data that was stored in embedDBState->dataFile etc
-     * @return	1 for success and 0 for failure
-     */
-    int8_t (*write)(void *buffer, uint32_t pageNum, uint32_t pageSize, void *file);
+  /**
+   * @brief	Writes a single page to file
+   * @param	buffer		The data to write to file
+   * @param	pageNum		Page number to write. Is treated as an offset from the beginning of the file
+   * @param	pageSize	Number of bytes in a page
+   * @param	file		The file data that was stored in embedDBState->dataFile etc
+   * @return	true on success
+   */
+  bool (*write)(void *buffer, uint32_t pageNum, uint32_t pageSize, void *file);
 
-    /**
-     * @brief	Erases a span of paes from file
-     * @param	startPage   The first page to earse
-     * @param	pageSize	The page to erase up to (exclusive)
-     * @param	file		The file data that was stored in embedDBState->dataFile etc
-     * @return	1 for success and 0 for failure
-     */
-    int8_t (*erase)(pgid_t startPage, pgid_t endPage, uint32_t pageSize, void *file);
+  /**
+   * @brief	Erases a span of paes from file
+   * @param	startPage   The first page to earse
+   * @param	pageSize	The page to erase up to (exclusive)
+   * @param	file		The file data that was stored in embedDBState->dataFile etc
+   * @return	true on success
+   */
+  bool (*erase)(pgid_t startPage, pgid_t endPage, uint32_t pageSize, void *file);
 
-    /**
-     * @brief	Closes the file
-     * @return	1 for success and 0 for failure
-     */
-    int8_t (*close)(void *file);
+  /**
+   * @brief  Closes the file
+   * @return true on success
+   */
+  bool (*close)(void *file);
 
-    /**
-     * @brief
-     * @param	file	The data that was passed to embedDB
-     * @param	flags	Flags that determine in which mode
-     * @return	1 for success and 0 for failure
-     */
-    int8_t (*open)(void *file, uint8_t mode);
+  /**
+   * @brief
+   * @param	file	The data that was passed to embedDB
+   * @param	flags	Flags that determine in which mode
+   * @return	true on success
+   */
+  bool (*open)(void *file, uint8_t mode);
 
-    /**
-     * @brief	Flushes file
-     * @return	1 for success and 0 for failure
-     */
-    int8_t (*flush)(void *file);
+  /**
+   * @brief	Flushes file
+   * @return	true on success
+   */
+  bool (*flush)(void *file);
 } embedDBFileInterface;
 
 typedef struct {

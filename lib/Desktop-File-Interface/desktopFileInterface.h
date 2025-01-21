@@ -15,8 +15,8 @@ extern "C" {
 #endif
 
 /* File functions */
-embedDBFileInterface *getFileInterface();
-embedDBFileInterface *getMockEraseFileInterface();
+embedDBFileInterface *getFileInterface(void);
+embedDBFileInterface *getMockEraseFileInterface(void);
 void *setupFile(char *filename);
 void tearDownFile(void *file);
 

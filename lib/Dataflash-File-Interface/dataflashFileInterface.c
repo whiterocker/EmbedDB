@@ -54,59 +54,51 @@ void tearDownDataflashFile(void *file) {
     free(file);
 }
 
-int8_t DF_READ(void *buffer, uint32_t pageNum, uint32_t pageSize, void *file) {
-    DF_FILE_INFO *fileInfo = (DF_FILE_INFO *)file;
-    if (pageNum >= fileInfo->numPages) {
-        return 0;
-    } else {
-        uint32_t physicalPage = fileInfo->startPage + pageNum;
-        uint32_t val = dfread(physicalPage, buffer, pageSize);
-        if (val == pageSize) {
-            return 1;
-        } else {
-            return 0;
-        }
-    }
+static bool DF_READ(void *buffer, uint32_t pageNum, uint32_t pageSize, void *file) {
+  bool retval = false;
+  DF_FILE_INFO *fileInfo = (DF_FILE_INFO *)file;
+  if (pageNum < fileInfo->numPages) {
+    uint32_t physicalPage = fileInfo->startPage + pageNum;
+    uint32_t val = dfread(physicalPage, buffer, pageSize);
+    retval = (val == pageSize);
+  }
+  return retval;
 }
 
-int8_t DF_WRITE(void *buffer, uint32_t pageNum, uint32_t pageSize, void *file) {
-    DF_FILE_INFO *fileInfo = (DF_FILE_INFO *)file;
-    if (pageNum >= fileInfo->numPages) {
-        return 0;
-    } else {
-        uint32_t physicalPage = fileInfo->startPage + pageNum;
-        uint32_t val = dfwrite(physicalPage, buffer, pageSize);
-        if (val == pageSize) {
-            return 1;
-        } else {
-            return 0;
-        }
-    }
+static bool DF_WRITE(void *buffer, uint32_t pageNum, uint32_t pageSize, void *file) {
+  bool retval = false;
+  DF_FILE_INFO *fileInfo = (DF_FILE_INFO *)file;
+  if (pageNum < fileInfo->numPages) {
+    uint32_t physicalPage = fileInfo->startPage + pageNum;
+    uint32_t val = dfwrite(physicalPage, buffer, pageSize);
+    retval = (val == pageSize);
+  }
+  return retval;
 }
 
-int8_t DF_ERASE(uint32_t startPage, uint32_t endPage, uint32_t pageSize, void *file) {
-    return 1;
+static bool DF_ERASE(uint32_t startPage, uint32_t endPage, uint32_t pageSize, void *file) {
+  return true;
 }
 
-int8_t DF_CLOSE(void *file) {
-    return 1;
+static bool DF_CLOSE(void *file) {
+  return true;
 }
 
-int8_t DF_OPEN(void *file, uint8_t mode) {
-    return 1;
+static bool DF_OPEN(void *file, uint8_t mode) {
+  return true;
 }
 
-int8_t DF_FLUSH(void *file) {
-    return 1;
+static bool DF_FLUSH(void *file) {
+  return true;
 }
 
-embedDBFileInterface *getDataflashInterface() {
-    embedDBFileInterface *fileInterface = malloc(sizeof(embedDBFileInterface));
-    fileInterface->close = DF_CLOSE;
-    fileInterface->read = DF_READ;
-    fileInterface->write = DF_WRITE;
-    fileInterface->erase = DF_ERASE;
-    fileInterface->open = DF_OPEN;
-    fileInterface->flush = DF_FLUSH;
-    return fileInterface;
+embedDBFileInterface *getDataflashInterface(void) {
+  embedDBFileInterface *fileInterface = malloc(sizeof(embedDBFileInterface));
+  fileInterface->close = DF_CLOSE;
+  fileInterface->read  = DF_READ;
+  fileInterface->write = DF_WRITE;
+  fileInterface->erase = DF_ERASE;
+  fileInterface->open  = DF_OPEN;
+  fileInterface->flush = DF_FLUSH;
+  return fileInterface;
 }

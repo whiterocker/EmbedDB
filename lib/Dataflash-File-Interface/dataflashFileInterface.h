@@ -46,7 +46,7 @@ extern "C" {
 
 #include "../../src/embedDB/embedDB.h"
 
-embedDBFileInterface *getDataflashInterface();
+embedDBFileInterface *getDataflashInterface(void);
 void *setupDataflashFile(uint32_t startPage, uint32_t numPages);
 void tearDownDataflashFile(void *file);
 

@@ -36,103 +36,93 @@
 #include "SDFileInterface.h"
 
 typedef struct {
-    char *filename;
-    SD_FILE *sdFile;
+  char *filename;
+  SD_FILE *sdFile;
 } SD_FILE_INFO;
 
 void *setupSDFile(char *filename) {
-    SD_FILE_INFO *fileInfo = malloc(sizeof(SD_FILE_INFO));
-    int nameLen = strlen(filename);
-    fileInfo->filename = calloc(1, nameLen + 1);
-    memcpy(fileInfo->filename, filename, nameLen);
-    fileInfo->sdFile = NULL;
-    return fileInfo;
+  SD_FILE_INFO *fileInfo = malloc(sizeof(SD_FILE_INFO));
+  int nameLen = strlen(filename);
+  fileInfo->filename = calloc(1, nameLen + 1);
+  memcpy(fileInfo->filename, filename, nameLen);
+  fileInfo->sdFile = NULL;
+  return fileInfo;
 }
 
 void tearDownSDFile(void *file) {
-    SD_FILE_INFO *fileInfo = (SD_FILE_INFO *)file;
-    free(fileInfo->filename);
-    if (fileInfo != NULL)
-        sd_fclose(fileInfo->sdFile);
-    free(file);
-}
-
-int8_t FILE_READ(void *buffer, uint32_t pageNum, uint32_t pageSize, void *file) {
-    SD_FILE_INFO *fileInfo = (SD_FILE_INFO *)file;
-    sd_fseek(fileInfo->sdFile, pageSize * pageNum, SEEK_SET);
-    return sd_fread(buffer, pageSize, 1, fileInfo->sdFile);
-}
-
-int8_t FILE_WRITE(void *buffer, uint32_t pageNum, uint32_t pageSize, void *file) {
-    SD_FILE_INFO *fileInfo = (SD_FILE_INFO *)file;
-    size_t fileSize = sd_length(fileInfo->sdFile);
-    size_t requiredSize = pageNum * pageSize;
-    if (fileSize < pageNum * pageSize) {
-        int8_t seekSuccess = sd_fseek(fileInfo->sdFile, fileSize, SEEK_SET);
-        if (seekSuccess == -1) {
-            return -1;
-        }
-        size_t currentSize = fileSize;
-        uint32_t max = UINT32_MAX;
-        uint32_t writeSuccess = 0;
-        while (currentSize < requiredSize) {
-            writeSuccess = sd_fwrite(&max, sizeof(uint32_t), 1, fileInfo->sdFile);
-            if (writeSuccess == 0)
-                return -1;
-            currentSize += 4;
-        }
-    }
-    int8_t seekSuccess = sd_fseek(fileInfo->sdFile, pageNum * pageSize, SEEK_SET);
-    if (seekSuccess == -1) {
-        return -1;
-    }
-    int8_t writeSuccess = sd_fwrite(buffer, pageSize, 1, fileInfo->sdFile) == pageSize;
-    if (seekSuccess == -1)
-        return 0;
-    return 1;
-}
-
-int8_t FILE_ERASE(uint32_t startPage, uint32_t endPage, uint32_t pageSize, void *file) {
-    return 1;
-}
-
-int8_t FILE_CLOSE(void *file) {
-    SD_FILE_INFO *fileInfo = (SD_FILE_INFO *)file;
+  SD_FILE_INFO *fileInfo = (SD_FILE_INFO *)file;
+  free(fileInfo->filename);
+  if (fileInfo != NULL)
     sd_fclose(fileInfo->sdFile);
-    fileInfo->sdFile = NULL;
-    return 1;
+  free(file);
 }
 
-int8_t FILE_FLUSH(void *file) {
-    SD_FILE_INFO *fileInfo = (SD_FILE_INFO *)file;
-    return sd_fflush(fileInfo->sdFile) == 0;
+static bool FILE_READ(void *buffer, uint32_t pageNum, uint32_t pageSize, void *file) {
+  SD_FILE_INFO *fileInfo = (SD_FILE_INFO *)file;
+  sd_fseek(fileInfo->sdFile, pageSize * pageNum, SEEK_SET);
+  return (1 == sd_fread(buffer, pageSize, 1, fileInfo->sdFile));
 }
 
-int8_t FILE_OPEN(void *file, uint8_t mode) {
-    SD_FILE_INFO *fileInfo = (SD_FILE_INFO *)file;
-
-    if (mode == EMBEDDB_FILE_MODE_W_PLUS_B) {
-        fileInfo->sdFile = sd_fopen(fileInfo->filename, "w+");
-    } else if (mode == EMBEDDB_FILE_MODE_R_PLUS_B) {
-        fileInfo->sdFile = sd_fopen(fileInfo->filename, "r+");
-    } else {
-        return 0;
+static bool FILE_WRITE(void *buffer, uint32_t pageNum, uint32_t pageSize, void *file) {
+  bool retval = false;
+  SD_FILE_INFO *fileInfo = (SD_FILE_INFO *)file;
+  size_t fileSize = sd_length(fileInfo->sdFile);
+  size_t requiredSize = pageNum * pageSize;
+  if (fileSize < pageNum * pageSize) {
+    int seekResult = sd_fseek(fileInfo->sdFile, fileSize, SEEK_SET);
+    if (seekResult == 0) {
+      size_t currentSize = fileSize;
+      uint32_t max = UINT32_MAX;
+      size_t   wresult = 1;
+      while ((currentSize < requiredSize) && (wresult == 1)) {
+	wresult = sd_fwrite(&max, sizeof(uint32_t), 1, fileInfo->sdFile);
+	currentSize += (4*wresult);
+      }
+      if (currentSize >= requiredSize) {
+	if (0 == sd_fseek(fileInfo->sdFile, pageNum * pageSize, SEEK_SET)) {
+	  retval = (1 == sd_fwrite(buffer, pageSize, 1, fileInfo->sdFile));
+	}
+      }
     }
-
-    if (fileInfo->sdFile == NULL) {
-        return 0;
-    } else {
-        return 1;
-    }
+  }
+  return retval;
 }
 
-embedDBFileInterface *getSDInterface() {
-    embedDBFileInterface *fileInterface = malloc(sizeof(embedDBFileInterface));
-    fileInterface->close = FILE_CLOSE;
-    fileInterface->read = FILE_READ;
-    fileInterface->write = FILE_WRITE;
-    fileInterface->erase = FILE_ERASE;
-    fileInterface->open = FILE_OPEN;
-    fileInterface->flush = FILE_FLUSH;
-    return fileInterface;
+static bool FILE_ERASE(uint32_t startPage, uint32_t endPage, uint32_t pageSize, void *file) {
+  return true;
+}
+
+static bool FILE_CLOSE(void *file) {
+  SD_FILE_INFO *fileInfo = (SD_FILE_INFO *)file;
+  sd_fclose(fileInfo->sdFile);
+  fileInfo->sdFile = NULL;
+  return true;
+}
+
+static bool FILE_FLUSH(void *file) {
+  SD_FILE_INFO *fileInfo = (SD_FILE_INFO *)file;
+  return (sd_fflush(fileInfo->sdFile) == 0);
+}
+
+static bool FILE_OPEN(void *file, uint8_t mode) {
+  SD_FILE_INFO *fileInfo = (SD_FILE_INFO *)file;
+  
+  if (mode == EMBEDDB_FILE_MODE_W_PLUS_B) {
+    fileInfo->sdFile = sd_fopen(fileInfo->filename, "w+");
+  } else if (mode == EMBEDDB_FILE_MODE_R_PLUS_B) {
+    fileInfo->sdFile = sd_fopen(fileInfo->filename, "r+");
+  } 
+  
+  return (bool) fileInfo->sdFile;
+}
+
+embedDBFileInterface *getSDInterface(void) {
+  embedDBFileInterface *fileInterface = malloc(sizeof(embedDBFileInterface));
+  fileInterface->close = FILE_CLOSE;
+  fileInterface->read  = FILE_READ;
+  fileInterface->write = FILE_WRITE;
+  fileInterface->erase = FILE_ERASE;
+  fileInterface->open  = FILE_OPEN;
+  fileInterface->flush = FILE_FLUSH;
+  return fileInterface;
 }

@@ -33,16 +33,16 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  */
 /******************************************************************************/  
-#include <time.h>
-#include <assert.h>
-#include <stdbool.h>
-#include <stdio.h>
 #include <stddef.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <string.h>
 #include <inttypes.h>
+#include <stdint.h>
 #include <math.h>
+#include <stdio.h>
+#include <stdbool.h>
+#include <assert.h>
+#include <time.h>
+#include <stdlib.h>
+#include <string.h>
 /************************************************************spline.h************************************************************/
 /******************************************************************************/
 /**
@@ -85,26 +85,26 @@
 extern "C" {
 #endif  
 
-/* Define type for keys and location ids. */
-typedef uint32_t id_t;
+/* Define type for page ids (physical and logical). */
+typedef uint32_t pgid_t;
 
 typedef struct spline_s spline;
 
 struct spline_s {
-    size_t count;            /* Number of points in spline */
-    size_t size;             /* Maximum number of points */
-    size_t pointsStartIndex; /* Index of the first spline point */
-    void *points;            /* Array of points */
-    void *upper;             /* Upper spline limit */
-    void *lower;             /* Lower spline limit */
-    void *firstSplinePoint;  /* First Point that was added to the spline */
-    uint32_t lastLoc;        /* Location of previous spline key */
-    void *lastKey;           /* Previous spline key */
-    uint32_t eraseSize;      /* Size of points to erase if none can be cleaned */
-    uint32_t maxError;       /* Maximum error */
-    uint32_t numAddCalls;    /* Number of times the add method has been called */
-    uint32_t tempLastPoint;  /* Last spline point is temporary if value is not 0 */
-    uint8_t keySize;         /* Size of key in bytes */
+  size_t   count;             /* Number of points in spline */
+  size_t   size;              /* Maximum number of points */
+  size_t   pointsStartIndex;  /* Index of the first spline point */
+  void *   points;            /* Array of points */
+  void *   upper;             /* Upper spline limit */
+  void *   lower;             /* Lower spline limit */
+  void *   firstSplinePoint;  /* First Point that was added to the spline */
+  uint32_t lastLoc;           /* Location of previous spline key */
+  void *   lastKey;           /* Previous spline key */
+  uint32_t eraseSize;         /* Size of points to erase if none can be cleaned */
+  uint32_t maxError;          /* Maximum error */
+  uint32_t numAddCalls;       /* Number of times the add method has been called */
+  uint32_t tempLastPoint;     /* Last spline point is temporary if value is not 0 */
+  uint8_t  keySize;           /* Size of key in bytes */
 };
 
 /**
@@ -114,7 +114,7 @@ struct spline_s {
  * @param    maxError   Maximum error allowed in spline
  * @param    keySize    Size of key in bytes
  */
-void splineInit(spline *spl, id_t size, size_t maxError, uint8_t keySize);
+void splineInit(spline * spl, pgid_t size, size_t maxError, uint8_t keySize);
 
 /**
  * @brief	Builds a spline structure given a sorted data set. GreedySplineCorridor
@@ -125,7 +125,7 @@ void splineInit(spline *spl, id_t size, size_t maxError, uint8_t keySize);
  * @param	size		Number of values in array
  * @param   maxError	Maximum error for each spline
  */
-void splineBuild(spline *spl, void **data, id_t size, size_t maxError);
+void splineBuild(spline * spl, void ** data, pgid_t size, size_t maxError);
 
 /**
  * @brief   Adds point to spline structure
@@ -133,19 +133,19 @@ void splineBuild(spline *spl, void **data, id_t size, size_t maxError);
  * @param   key     Data key to be added (must be incrementing)
  * @param   page    Page number for spline point to add
  */
-void splineAdd(spline *spl, void *key, uint32_t page);
+void splineAdd(spline * spl, void * key, uint32_t page);
 
 /**
  * @brief	Print a spline structure.
  * @param	spl	Spline structure
  */
-void splinePrint(spline *spl);
+void splinePrint(spline * spl);
 
 /**
  * @brief	Return spline structure size in bytes.
  * @param	spl	Spline structure
  */
-uint32_t splineSize(spline *spl);
+uint32_t splineSize(spline * spl);
 
 /**
  * @brief	Estimate the page number of a given key
@@ -156,13 +156,18 @@ uint32_t splineSize(spline *spl);
  * @param	low			A return value for the smallest page that it could be on
  * @param	high		A return value for the largest page it could be on
  */
-void splineFind(spline *spl, void *key, int8_t compareKey(void *, void *), id_t *loc, id_t *low, id_t *high);
+void splineFind(spline * spl,
+		void *   key,
+		int8_t   compareKey(void *, void *),
+		pgid_t * loc,
+		pgid_t * low,
+		pgid_t * high);
 
 /**
  * @brief    Free memory allocated for spline structure.
  * @param    spl        Spline structure
  */
-void splineClose(spline *spl);
+void splineClose(spline * spl);
 
 /**
  * @brief   Removes points from the spline
@@ -170,14 +175,16 @@ void splineClose(spline *spl);
  * @param   numPoints   The number of points to remove from the spline
  * @return  Returns zero if successful and one if not
  */
-int splineErase(spline *spl, uint32_t numPoints);
+int splineErase(spline * spl,
+		uint32_t numPoints);
 
 /**
  * @brief   Returns a pointer to the location of the specified spline point in memory. Note that this method does not check if there is a point there, so it may be garbage data.
  * @param   spl         The spline structure that contains the points
  * @param   pointIndex  The index of the point to return a pointer to
  */
-void *splinePointLocation(spline *spl, size_t pointIndex);
+void * splinePointLocation(spline * spl,
+			   size_t   pointIndex);
 
 #ifdef __cplusplus
 }
@@ -226,22 +233,24 @@ void *splinePointLocation(spline *spl, size_t pointIndex);
 
 #ifdef __cplusplus
 extern "C" {
-#endif    
+#endif     
 
 #if !defined(EDB_PRINTF) 
-#define EDB_PRINTF(fmt, ...) printf(fmt __VA_OPT__(,) __VA_ARGS__)
+#define EDB_PRINTF(...) printf(__VA_ARGS__)
 #endif
 
 #if !defined(EDB_PERRF)
 #ifdef PRINT_ERRORS 
-#define EDB_PERRF(fmt, ...) printf(fmt __VA_OPT__(,) __VA_ARGS__)
+#define EDB_PERRF(...) printf(__VA_ARGS__)
 #else
 #define EDB_PERRF(...) 
 #endif
-#endif 
+#endif
 
-/* Define type for page ids (physical and logical). */
-typedef uint32_t id_t;
+#if !defined(EDB_NO_HEAP)
+#define EDB_NO_HEAP (0)
+#endif
+#define EDB_WITH_HEAP (!EDB_NO_HEAP) 
 
 /* Define type for page record count. */
 typedef uint16_t count_t;
@@ -263,6 +272,7 @@ typedef uint16_t count_t;
 #define EMBEDDB_USING_VDATA(x) ((x & EMBEDDB_USE_VDATA) > 0 ? 1 : 0)
 #define EMBEDDB_USING_RECORD_LEVEL_CONSISTENCY(x) ((x & EMBEDDB_RECORD_LEVEL_CONSISTENCY) > 0 ? 1 : 0)
 #define EMBEDDB_USING_BINARY_SEARCH(x) ((x & EMBEDDB_USE_BINARY_SEARCH) > 0 ? 1 : 0)
+#define EMBEDDB_USING_SPLINE(x) (!EMBEDDB_USING_BINARY_SEARCH(x))
 #define EMBEDDB_DISABLED_SPLINE_CLEAN(x) ((x & EMBEDDB_DISABLE_SPLINE_CLEAN) > 0 ? 1 : 0)
 #define EMBEDDB_RESETING_DATA(x) ((x & EMBEDDB_RESET_DATA) > 0 ? 1 : 0)
 
@@ -338,54 +348,55 @@ typedef uint16_t count_t;
  * @brief	An interface for embedDB to read/write to any storage medium at the page level of granularity
  */
 typedef struct {
-    /**
-     * @brief	Reads a single page into the buffer
-     * @param	buffer		Pre-allocated space where data is read into
-     * @param	pageNum		Page number to read. Is treated as an offset from the beginning of the file
-     * @param	pageSize	Number of bytes in a page
-     * @param	file		The file to read from. This is the file data that was stored in embedDBState->dataFile etc
-     * @return	1 for success and 0 for failure
-     */
-    int8_t (*read)(void *buffer, uint32_t pageNum, uint32_t pageSize, void *file);
+  /**
+   * @brief	Reads a single page into the buffer
+   * @param	buffer   Pre-allocated space where data is read into
+   * @param	pageNum	 Page number to read. Is treated as an offset from the beginning of the file
+   * @param	pageSize Number of bytes in a page     
+   * @param     file     The file to read from. This is the file data that
+   *                     was stored in embedDBState->dataFile etc     
+   * @return	true on success
+   */
+  bool (*read)(void *buffer, uint32_t pageNum, uint32_t pageSize, void *file);
 
-    /**
-     * @brief	Writes a single page to file
-     * @param	buffer		The data to write to file
-     * @param	pageNum		Page number to write. Is treated as an offset from the beginning of the file
-     * @param	pageSize	Number of bytes in a page
-     * @param	file		The file data that was stored in embedDBState->dataFile etc
-     * @return	1 for success and 0 for failure
-     */
-    int8_t (*write)(void *buffer, uint32_t pageNum, uint32_t pageSize, void *file);
+  /**
+   * @brief	Writes a single page to file
+   * @param	buffer		The data to write to file
+   * @param	pageNum		Page number to write. Is treated as an offset from the beginning of the file
+   * @param	pageSize	Number of bytes in a page
+   * @param	file		The file data that was stored in embedDBState->dataFile etc
+   * @return	true on success
+   */
+  bool (*write)(void *buffer, uint32_t pageNum, uint32_t pageSize, void *file);
 
-    /**
-     * @brief	Erases a span of paes from file
-     * @param	startPage   The first page to earse
-     * @param	pageSize	The page to erase up to (exclusive)
-     * @param	file		The file data that was stored in embedDBState->dataFile etc
-     * @return	1 for success and 0 for failure
-     */
-    int8_t (*erase)(id_t startPage, id_t endPage, uint32_t pageSize, void *file);
+  /**
+   * @brief	Erases a span of paes from file
+   * @param	startPage   The first page to earse
+   * @param	pageSize	The page to erase up to (exclusive)
+   * @param	file		The file data that was stored in embedDBState->dataFile etc
+   * @return	true on success
+   */
+  bool (*erase)(pgid_t startPage, pgid_t endPage, uint32_t pageSize, void *file);
 
-    /**
-     * @brief	Closes the file
-     * @return	1 for success and 0 for failure
-     */
-    int8_t (*close)(void *file);
+  /**
+   * @brief  Closes the file
+   * @return true on success
+   */
+  bool (*close)(void *file);
 
-    /**
-     * @brief
-     * @param	file	The data that was passed to embedDB
-     * @param	flags	Flags that determine in which mode
-     * @return	1 for success and 0 for failure
-     */
-    int8_t (*open)(void *file, uint8_t mode);
+  /**
+   * @brief
+   * @param	file	The data that was passed to embedDB
+   * @param	flags	Flags that determine in which mode
+   * @return	true on success
+   */
+  bool (*open)(void *file, uint8_t mode);
 
-    /**
-     * @brief	Flushes file
-     * @return	1 for success and 0 for failure
-     */
-    int8_t (*flush)(void *file);
+  /**
+   * @brief	Flushes file
+   * @return	true on success
+   */
+  bool (*flush)(void *file);
 } embedDBFileInterface;
 
 typedef struct {
@@ -403,12 +414,12 @@ typedef struct {
     uint32_t minDataPageId;                                               /* Lowest logical data page id that is saved on file */
     uint32_t minIndexPageId;                                              /* Lowest logical index page id that is saved on file */
     uint64_t minVarRecordId;                                              /* Minimum record id that we still have variable data for */
-    id_t nextDataPageId;                                                  /* Next logical page id. Page id is an incrementing value and may not always be same as physical page id. */
-    id_t nextIdxPageId;                                                   /* Next logical page id for index. Page id is an incrementing value and may not always be same as physical page id. */
-    id_t nextVarPageId;                                                   /* Page number of next var page to be written */
+    pgid_t nextDataPageId;                                                  /* Next logical page id. Page id is an incrementing value and may not always be same as physical page id. */
+    pgid_t nextIdxPageId;                                                   /* Next logical page id for index. Page id is an incrementing value and may not always be same as physical page id. */
+    pgid_t nextVarPageId;                                                   /* Page number of next var page to be written */
     uint32_t nextRLCPhysicalPageLocation;                                 /* Physical page number for the location for the next record-level-consistency page */
     uint32_t rlcPhysicalStartingPage;                                     /* Physical page number for the starting page of the record-level consistnecy pages */
-    id_t currentVarLoc;                                                   /* Current variable address offset to write at (bytes from beginning of file) */
+    pgid_t currentVarLoc;                                                   /* Current variable address offset to write at (bytes from beginning of file) */
     void *buffer;                                                         /* Pre-allocated memory buffer for use by algorithm */
     spline *spl;                                                          /* Spline model */
     uint32_t numSplinePoints;                                             /* Number of spline points to allocate */
@@ -432,14 +443,14 @@ typedef struct {
     int8_t (*inBitmap)(void *data, void *bm);                             /* Returns 1 if data (key) value is a valid value given the bitmap */
     uint64_t maxKey;                                                      /* Maximum key */
     int32_t maxError;                                                     /* Maximum key error */
-    id_t numWrites;                                                       /* Number of page writes */
-    id_t numReads;                                                        /* Number of page reads */
-    id_t numIdxWrites;                                                    /* Number of index page writes */
-    id_t numIdxReads;                                                     /* Number of index page reads */
-    id_t bufferHits;                                                      /* Number of pages returned from buffer rather than storage */
-    id_t bufferedPageId;                                                  /* Page id currently in read buffer */
-    id_t bufferedIndexPageId;                                             /* Index page id currently in index read buffer */
-    id_t bufferedVarPage;                                                 /* Variable page id currently in variable read buffer */
+    pgid_t numWrites;                                                       /* Number of page writes */
+    pgid_t numReads;                                                        /* Number of page reads */
+    pgid_t numIdxWrites;                                                    /* Number of index page writes */
+    pgid_t numIdxReads;                                                     /* Number of index page reads */
+    pgid_t bufferHits;                                                      /* Number of pages returned from buffer rather than storage */
+    pgid_t bufferedPageId;                                                  /* Page id currently in read buffer */
+    pgid_t bufferedIndexPageId;                                             /* Index page id currently in index read buffer */
+    pgid_t bufferedVarPage;                                                 /* Variable page id currently in variable read buffer */
     uint8_t recordHasVarData;                                             /* Internal flag to signal that the record currently being written has var data */
 } embedDBState;
 
@@ -595,7 +606,7 @@ int8_t embedDBFlushVar(embedDBState *state);
  * @param	pageNum	Page number to read
  * @return	Return 0 if success, -1 if error.
  */
-int8_t readPage(embedDBState *state, id_t pageNum);
+int8_t readPage(embedDBState *state, pgid_t pageNum);
 
 /**
  * @brief	Reads given index page from storage.
@@ -603,7 +614,7 @@ int8_t readPage(embedDBState *state, id_t pageNum);
  * @param	pageNum	Page number to read
  * @return	Return 0 if success, -1 if error.
  */
-int8_t readIndexPage(embedDBState *state, id_t pageNum);
+int8_t readIndexPage(embedDBState *state, pgid_t pageNum);
 
 /**
  * @brief	Reads given variable data page from storage
@@ -611,7 +622,7 @@ int8_t readIndexPage(embedDBState *state, id_t pageNum);
  * @param 	pageNum Page number to read
  * @return 	Return 0 if success, -1 if error
  */
-int8_t readVariablePage(embedDBState *state, id_t pageNum);
+int8_t readVariablePage(embedDBState *state, pgid_t pageNum);
 
 /**
  * @brief	Writes page in buffer to storage. Returns page number.
@@ -619,7 +630,7 @@ int8_t readVariablePage(embedDBState *state, id_t pageNum);
  * @param	pageNum	Page number to read
  * @return	Return page number if success, -1 if error.
  */
-id_t writePage(embedDBState *state, void *buffer);
+pgid_t writePage(embedDBState *state, void *buffer);
 
 /**
  * @brief	Writes index page in buffer to storage. Returns page number.
@@ -627,7 +638,7 @@ id_t writePage(embedDBState *state, void *buffer);
  * @param	pageNum	Page number to read
  * @return	Return page number if success, -1 if error.
  */
-id_t writeIndexPage(embedDBState *state, void *buffer);
+pgid_t writeIndexPage(embedDBState *state, void *buffer);
 
 /**
  * @brief	Writes variable data page in buffer to storage. Returns page number.
@@ -635,7 +646,7 @@ id_t writeIndexPage(embedDBState *state, void *buffer);
  * @param	pageNum	Page number to read
  * @return	Return page number if success, -1 if error.
  */
-id_t writeVariablePage(embedDBState *state, void *buffer);
+pgid_t writeVariablePage(embedDBState *state, void *buffer);
 
 /**
  * @brief   Writes a temporary page when using record-levek-consistency to storage.
@@ -720,44 +731,57 @@ extern "C" {
  * @brief	A struct to desribe the number and sizes of attributes contained in the data of a embedDB table
  */
 typedef struct {
-    uint8_t numCols;      // The number of columns in the table
-    int8_t* columnSizes;  // A list of the sizes, in bytes, of each column. Negative numbers indicate signed columns while positive indicate an unsigned column
+  uint8_t  numCols;      // The number of columns in the table
+  int8_t * columnSizes;  // A list of the sizes, in bytes, of each
+			 // column. Negative numbers indicate signed
+			 // columns while positive indicate an
+			 // unsigned column
 } embedDBSchema;
 
 /**
- * @brief	Create an embedDBSchema from a list of column sizes including both key and data
- * @param	numCols			The total number of key & data columns in table
- * @param	colSizes		An array with the size of each column. Max size is 127
- * @param	colSignedness	An array describing if the data in the column is signed or unsigned. Use the defined constants embedDB_COLUMNN_SIGNED or embedDB_COLUMN_UNSIGNED
+ * @brief Create an embedDBSchema from a list of column sizes
+ *        including both key and data 
+ * @param numCols        The total number of key & data columns in table 
+ * @param colSizes       An array with the size of each column. Max size is
+ *                       127
+ * @param colSignedness  An array describing if the data in the column
+ *                       is signed or unsigned. Use the defined
+ *                       constants embedDB_COLUMNN_SIGNED or
+ *                       embedDB_COLUMN_UNSIGNED
  */
-embedDBSchema* embedDBCreateSchema(uint8_t numCols, int8_t* colSizes, int8_t* colSignedness);
+embedDBSchema * embedDBCreateSchema(uint8_t  numCols,
+				    int8_t * colSizes,
+				    int8_t * colSignedness);
 
 /**
- * @brief	Free a schema. Sets the schema pointer to NULL.
+ * @brief Free a schema. Sets the schema pointer to NULL.
  */
-void embedDBFreeSchema(embedDBSchema** schema);
+void embedDBFreeSchema(embedDBSchema ** schema);
 
 /**
- * @brief	Uses schema to determine the length of buffer to allocate and callocs that space
+ * @brief Uses schema to determine the length of buffer to allocate
+ *        and callocs that space
  */
-void* createBufferFromSchema(embedDBSchema* schema);
+void * createBufferFromSchema(embedDBSchema * schema);
 
 /**
- * @brief	Deep copy schema and return a pointer to the copy
+ * @brief Deep copy schema and return a pointer to the copy
  */
-embedDBSchema* copySchema(const embedDBSchema* schema);
+embedDBSchema * copySchema(const embedDBSchema * schema);
 
 /**
- * @brief	Finds byte offset of the column from the beginning of the record
+ * @brief Finds byte offset of the column from the beginning of the
+ *        record
  */
-uint16_t getColOffsetFromSchema(embedDBSchema* schema, uint8_t colNum);
+uint16_t getColOffsetFromSchema(embedDBSchema * schema,
+				uint8_t         colNum);
 
 /**
- * @brief	Calculates record size from schema
+ * @brief Calculates record size from schema
  */
-uint16_t getRecordSizeFromSchema(embedDBSchema* schema);
+uint16_t getRecordSizeFromSchema(embedDBSchema * schema);
 
-void printSchema(embedDBSchema* schema);
+void printSchema(embedDBSchema * schema);
 
 #ifdef __cplusplus
 }
@@ -816,166 +840,227 @@ extern "C" {
 #define SELECT_NEQ 5
 
 typedef struct embedDBAggregateFunc {
-    /**
-     * @brief	Resets the state
-     */
-    void (*reset)(struct embedDBAggregateFunc* aggFunc, embedDBSchema* inputSchema);
-
-    /**
-     * @brief	Adds another record to the group and updates the state
-     * @param	state	The state tracking the value of the aggregate function e.g. sum
-     * @param	record	The record being added
-     */
-    void (*add)(struct embedDBAggregateFunc* aggFunc, embedDBSchema* inputSchema, const void* record);
-
-    /**
-     * @brief	Finalize aggregate result into the record buffer and modify the schema accordingly. Is called once right before aggroup returns.
-     */
-    void (*compute)(struct embedDBAggregateFunc* aggFunc, embedDBSchema* outputSchema, void* recordBuffer, const void* lastRecord);
-
-    /**
-     * @brief	A user-allocated space where the operator saves its state. E.g. a sum operator might have 4 bytes allocated to store the sum of all data
-     */
-    void* state;
-
-    /**
-     * @brief	How many bytes will the compute insert into the record
-     */
-    int8_t colSize;
-
-    /**
-     * @brief	Which column number should compute write to
-     */
-    uint8_t colNum;
+  /**
+   * @brief	Resets the state
+   */
+  void (*reset)(struct embedDBAggregateFunc * aggFunc,
+		embedDBSchema *               inputSchema);
+  
+  /**
+   * @brief	Adds another record to the group and updates the state
+   * @param	state	The state tracking the value of the aggregate function e.g. sum
+   * @param	record	The record being added
+   */
+  void (*add)(struct embedDBAggregateFunc * aggFunc,
+	      embedDBSchema *               inputSchema,
+	      const void *                  record);
+  
+  /**
+   * @brief Finalize aggregate result into the record buffer and
+   *        modify the schema accordingly. Is called once right
+   *        before aggroup returns.
+   */
+  void (*compute)(struct embedDBAggregateFunc * aggFunc,
+		  embedDBSchema *               outputSchema,
+		  void *                        recordBuffer,
+		  const void *                  lastRecord);
+  
+  /**
+   * @brief A user-allocated space where the operator saves its
+   *        state. E.g. a sum operator might have 4 bytes allocated
+   *        to store the sum of all data
+   */
+  void * state;
+  
+  /**
+   * @brief	How many bytes will the compute insert into the record
+   */
+  int8_t colSize;
+  
+  /**
+   * @brief	Which column number should compute write to
+   */
+  uint8_t colNum;
 } embedDBAggregateFunc;
-
+  
 typedef struct embedDBOperator {
-    /**
-     * @brief	The input operator to this operator
-     */
-    struct embedDBOperator* input;
-
-    /**
-     * @brief	Initialize the operator. Usually includes setting/calculating the output schema, allocating buffers, etc. Recursively inits input operator as its first action.
-     */
-    void (*init)(struct embedDBOperator* op);
-
-    /**
-     * @brief	Puts the next tuple to be outputed by this operator into @c operator->recordBuffer. Needs to call next on the input operator if applicable
-     * @return	Returns 0 or 1 to indicate whether a new tuple was outputted to operator->recordBuffer
-     */
-    int8_t (*next)(struct embedDBOperator* op);
-
-    /**
-     * @brief	Recursively closes this operator and its input operator. Frees anything allocated in init.
-     */
-    void (*close)(struct embedDBOperator* op);
-
-    /**
-     * @brief	A pre-allocated memory area that can be loaded with any extra parameters that the function needs to operate (e.g. column numbers or selection predicates)
-     */
-    void* state;
-
-    /**
-     * @brief	The output schema of this operator
-     */
-    embedDBSchema* schema;
-
-    /**
-     * @brief	The output record of this operator
-     */
-    void* recordBuffer;
+  /**
+   * @brief	The input operator to this operator
+   */
+  struct embedDBOperator * input;
+  
+  /**
+   * @brief Initialize the operator. Usually includes
+   *        setting/calculating the output schema, allocating buffers,
+   *        etc. Recursively inits input operator as its first action.
+   */
+  void (*init)(struct embedDBOperator * op);
+  
+  /**
+   * @brief Puts the next tuple to be outputed by this operator into
+   *        @c operator->recordBuffer. Needs to call next on the input
+   *        operator if applicable   
+   * @return Returns 0 or 1 to indicate whether a new tuple was
+   *         outputted to operator->recordBuffer
+   */
+  int8_t (*next)(struct embedDBOperator * op);
+  
+  /**
+   * @brief Recursively closes this operator and its input
+   *        operator. Frees anything allocated in init.
+   */
+  void (*close)(struct embedDBOperator * op);
+  
+  /**
+   * @brief A pre-allocated memory area that can be loaded with any
+   *        extra parameters that the function needs to operate
+   *        (e.g. column numbers or selection predicates)
+   */
+  void * state;
+  
+  /**
+   * @brief The output schema of this operator
+   */
+  embedDBSchema * schema;
+  
+  /**
+   * @brief The output record of this operator
+   */
+  void * recordBuffer;
 } embedDBOperator;
 
 /**
- * @brief	Extract a record from an operator
- * @return	1 if a record was returned, 0 if there are no more rows to return
+ * @brief  Extract a record from an operator
+ * @return 1 if a record was returned, 0 if there are no more rows to return
  */
-int8_t exec(embedDBOperator* op);
+int8_t exec(embedDBOperator * op);
 
 /**
- * @brief	Completely free a chain of operators recursively after it's already been closed.
+ * @brief Completely free a chain of operators recursively after it's
+ *        already been closed.
  */
-void embedDBFreeOperatorRecursive(embedDBOperator** op);
+void embedDBFreeOperatorRecursive(embedDBOperator ** op);
 
 ///////////////////////////////////////////
 // Pre-built operators for basic queries //
 ///////////////////////////////////////////
 
 /**
- * @brief	Used as the bottom operator that will read records from the database
- * @param	state		The state associated with the database to read from
- * @param	it			An initialized iterator setup to read relevent records for this query
- * @param	baseSchema	The schema of the database being read from
+ * @brief Used as the bottom operator that will read records from the database 
+ * @param state       The state associated with the database to read from
+ * @param it          An initialized iterator setup to read relevent records for this query
+ * @param baseSchema  The schema of the database being read from
  */
-embedDBOperator* createTableScanOperator(embedDBState* state, embedDBIterator* it, embedDBSchema* baseSchema);
+embedDBOperator * createTableScanOperator(embedDBState *    state,
+					  embedDBIterator * it,
+					  embedDBSchema *   baseSchema);
 
 /**
- * @brief	Creates an operator capable of projecting the specified columns. Cannot re-order columns
+ * @brief Creates an operator capable of projecting the specified
+ *        columns. Cannot re-order columns
  * @param	input	The operator that this operator can pull records from
  * @param	numCols	How many columns will be in the final projection
  * @param	cols	The indexes of the columns to be outputted. *Zero indexed*
  */
-embedDBOperator* createProjectionOperator(embedDBOperator* input, uint8_t numCols, uint8_t* cols);
+embedDBOperator * createProjectionOperator(embedDBOperator * input,
+					   uint8_t           numCols,
+					   uint8_t *         cols);
 
 /**
- * @brief	Creates an operator that selects records based on simple selection rules
- * @param	input		The operator that this operator can pull records from
- * @param	colNum		The index (zero-indexed) of the column base the select on
- * @param	operation	A constant representing which comparison operation to perform. (e.g. SELECT_GT, SELECT_EQ, etc)
- * @param	compVal		A pointer to the value to compare with. Make sure the size of this is the same number of bytes as is described in the schema
+ * @brief Creates an operator that selects records based on simple
+ *        selection rules 
+ * @param input      The operator that this operator can pull records from 
+ * @param colNum     The index (zero-indexed) of the column base the
+ *                   select on 
+ * @param operation  A constant representing which comparison operation
+ *                   to perform. (e.g. SELECT_GT, SELECT_EQ, etc) 
+ * @param compVal    A pointer to the value to compare with. Make sure
+ *                   the size of this is the same number of bytes as
+ *                   is described in the schema
  */
-embedDBOperator* createSelectionOperator(embedDBOperator* input, int8_t colNum, int8_t operation, void* compVal);
+embedDBOperator * createSelectionOperator(embedDBOperator * input,
+					  int8_t            colNum,
+					  int8_t            operation,
+					  void *            compVal);
 
 /**
- * @brief	Creates an operator that will find groups and preform aggregate functions over each group.
- * @param	input			The operator that this operator can pull records from
- * @param	groupfunc		A function that returns whether or not the @c record is part of the same group as the @c lastRecord. Assumes that records in groups are always next to each other and sorted when read in (i.e. Groups need to be 1122333, not 13213213)
- * @param	functions		An array of aggregate functions, each of which will be updated with each record read from the iterator
- * @param	functionsLength			The number of embedDBAggregateFuncs in @c functions
+ * @brief  Creates an operator that will find groups and preform
+ *         aggregate functions over each group.
+ * @param input       The operator that this operator can pull records from
+ * @param groupfunc   A function that returns whether or not the @c
+ *                    record is part of the same group as the @c
+ *                    lastRecord. Assumes that records in groups are
+ *                    always next to each other and sorted when read
+ *                    in (i.e. Groups need to be 1122333, not
+ *                    13213213) 
+ * @param functions   An array of aggregate functions, each of which
+ *                    will be updated with each record read from the iterator 
+ * @param functionsLength  The number of embedDBAggregateFuncs in @c functions
  */
-embedDBOperator* createAggregateOperator(embedDBOperator* input, int8_t (*groupfunc)(const void* lastRecord, const void* record), embedDBAggregateFunc* functions, uint32_t functionsLength);
+embedDBOperator *
+createAggregateOperator(embedDBOperator* input,
+			int8_t (*groupfunc)(const void* lastRecord, const void* record),
+			embedDBAggregateFunc* functions,
+			uint32_t functionsLength);
 
 /**
- * @brief	Creates an operator for perfoming an equijoin on the keys (sorted and distinct) of two tables
+ * @brief Creates an operator for perfoming an equijoin on the keys
+ *        (sorted and distinct) of two tables
  */
-embedDBOperator* createKeyJoinOperator(embedDBOperator* input1, embedDBOperator* input2);
+embedDBOperator * createKeyJoinOperator(embedDBOperator * input1,
+					embedDBOperator * input2);
 
 //////////////////////////////////
 // Prebuilt aggregate functions //
 //////////////////////////////////
 
 /**
- * @brief	Creates an aggregate function to count the number of records in a group. To be used in combination with an embedDBOperator produced by createAggregateOperator
+ * @brief Creates an aggregate function to count the number of records
+ *        in a group. To be used in combination with an
+ *        embedDBOperator produced by createAggregateOperator
  */
-embedDBAggregateFunc* createCountAggregate();
+embedDBAggregateFunc * createCountAggregate(void);
 
 /**
- * @brief	Creates an aggregate function to sum a column over a group. To be used in combination with an embedDBOperator produced by createAggregateOperator. Column must be no bigger than 8 bytes.
- * @param	colNum	The index (zero-indexed) of the column which you want to sum. Column must be <= 8 bytes
+ * @brief Creates an aggregate function to sum a column over a
+ *        group. To be used in combination with an embedDBOperator
+ *        produced by createAggregateOperator. Column must be no
+ *        bigger than 8 bytes. 
+ * @param colNum The index (zero-indexed) of the column which you want
+ *        to sum. Column must be <= 8 bytes
  */
-embedDBAggregateFunc* createSumAggregate(uint8_t colNum);
+embedDBAggregateFunc * createSumAggregate(uint8_t colNum);
 
 /**
- * @brief	Creates an aggregate function to find the min value in a group
- * @param	colNum	The zero-indexed column to find the min of
- * @param	colSize	The size, in bytes, of the column to find the min of. Negative number represents a signed number, positive is unsigned.
+ * @brief Creates an aggregate function to find the min value in a group 
+ * @param colNum   The zero-indexed column to find the min of
+ * @param colSize  The size, in bytes, of the column to find the min
+ *                 of. Negative number represents a signed number,
+ *                 positive is unsigned.
  */
-embedDBAggregateFunc* createMinAggregate(uint8_t colNum, int8_t colSize);
+embedDBAggregateFunc * createMinAggregate(uint8_t colNum,
+					  int8_t  colSize);
 
 /**
- * @brief	Creates an aggregate function to find the max value in a group
- * @param	colNum	The zero-indexed column to find the max of
- * @param	colSize	The size, in bytes, of the column to find the max of. Negative number represents a signed number, positive is unsigned.
+ * @brief Creates an aggregate function to find the max value in a group
+ * @param colNum   The zero-indexed column to find the max of
+ * @param colSize  The size, in bytes, of the column to find the max
+ *                 of. Negative number represents a signed number,
+ *                 positive is unsigned.
  */
-embedDBAggregateFunc* createMaxAggregate(uint8_t colNum, int8_t colSize);
+embedDBAggregateFunc * createMaxAggregate(uint8_t colNum,
+					  int8_t  colSize);
 
 /**
- * @brief	Creates an operator to compute the average of a column over a group. **WARNING: Outputs a floating point number that may not be compatible with other operators**
- * @param	colNum			Zero-indexed column to take average of
- * @param	outputFloatSize	Size of float to output. Must be either 4 (float) or 8 (double)
+ * @brief Creates an operator to compute the average of a column over
+ *        a group. **WARNING: Outputs a floating point number that may
+ *        not be compatible with other operators** 
+ * @param colNum           Zero-indexed column to take average of 
+ * @param outputFloatSize  Size of float to output. Must be either 4
+ *                        (float) or 8 (double)
  */
-embedDBAggregateFunc* createAvgAggregate(uint8_t colNum, int8_t outputFloatSize);
+embedDBAggregateFunc * createAvgAggregate(uint8_t colNum,
+					  int8_t  outputFloatSize);
 
 #ifdef __cplusplus
 }
